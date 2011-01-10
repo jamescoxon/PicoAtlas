@@ -153,6 +153,9 @@ int getUBXNAV5() {
 void setup()
 {
   pinMode(13, OUTPUT); //LED
+  pinMode(4, OUTPUT); //Radio Tx0
+  pinMode(5, OUTPUT); //Radio Tx1
+  pinMode(6, OUTPUT); //Radio En
   digitalWrite(13, HIGH);
   Serial.begin(9600);
   nss.begin(9600);
