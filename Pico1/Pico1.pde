@@ -16,9 +16,6 @@ char latbuf[12] = "0", lonbuf[12] = "0";
 long int ialt = 123;
 int numbersats = 99;
 
-//Misc
-long int tx_delay = 10000;
-
 // ------------------------
 // RTTY Functions - from RJHARRISON's AVR Code
 void rtty_txstring (char * string)
@@ -159,7 +156,9 @@ void setup()
   digitalWrite(13, HIGH);
   Serial.begin(9600);
   nss.begin(9600);
-  delay(5000);
+  
+  delay(5000); // We have to wait for a bit for the GPS to boot otherwise the commands get missed
+  
   //Turning off all GPS NMEA strings apart on the uBlox module
   Serial.println("$PUBX,40,GLL,0,0,0,0*5C");
   Serial.println("$PUBX,40,GGA,0,0,0,0*5A");
@@ -167,7 +166,9 @@ void setup()
   Serial.println("$PUBX,40,RMC,0,0,0,0*47");
   Serial.println("$PUBX,40,GSV,0,0,0,0*59");
   Serial.println("$PUBX,40,VTG,0,0,0,0*5E");
-  delay(3000);
+  
+  delay(3000); // Wait for the GPS to process all the previous commands
+  
  // Check and set the navigation mode (Airborne, 1G)   
   uint8_t setNav[] = {0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF, 0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x05, 0x00, 0xFA, 0x00, 0xFA, 0x00, 0x64, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0xDC};
   sendUBX(setNav, sizeof(setNav)/sizeof(uint8_t));
@@ -184,7 +185,8 @@ void loop() {
     
     digitalWrite(6, HIGH);
     
-    Serial.println("$PUBX,00*33");
+    Serial.println("$PUBX,00*33"); //Poll GPS
+    
     while (Serial.available())
     {
       int c = Serial.read();
