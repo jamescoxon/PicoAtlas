@@ -62,15 +62,15 @@ void rtty_txbit (int bit)
 		if (bit)
 		{
 		  // high
-                    digitalWrite(4, HIGH);
-                    digitalWrite(5, LOW);
+                    digitalWrite(A4, HIGH);
+                    digitalWrite(A5, LOW);
                     digitalWrite(13, LOW); //LED  
 		}
 		else
 		{
 		  // low
-                    digitalWrite(5, HIGH);
-                    digitalWrite(4, LOW);
+                    digitalWrite(A5, HIGH);
+                    digitalWrite(A4, LOW);
                     digitalWrite(13, HIGH); //LED
 		}
 		//delayMicroseconds(20500); // 10000 = 100 BAUD 20150
@@ -150,12 +150,13 @@ int getUBXNAV5() {
 void setup()
 {
   pinMode(13, OUTPUT); //LED
-  pinMode(4, OUTPUT); //Radio Tx0
-  pinMode(5, OUTPUT); //Radio Tx1
-  pinMode(6, OUTPUT); //Radio En
+  pinMode(A4, OUTPUT); //Radio Tx0
+  pinMode(A5, OUTPUT); //Radio Tx1
+  pinMode(A0, OUTPUT); //Radio En
+  digitalWrite(A0, HIGH);
   digitalWrite(13, HIGH);
   Serial.begin(9600);
-  nss.begin(9600);
+  nss.begin(57600);
   
   delay(5000); // We have to wait for a bit for the GPS to boot otherwise the commands get missed
   
@@ -183,7 +184,7 @@ void loop() {
     char checksum [10];
     int n;
     
-    digitalWrite(6, HIGH);
+    //digitalWrite(A0, HIGH);
     
     Serial.println("$PUBX,00*33"); //Poll GPS
     
@@ -206,7 +207,7 @@ void loop() {
     
     navstatus = gps.navstatus();
     
-    if (navstatus == 1) {
+    if (numbersats >= 1) {
       digitalWrite(13, HIGH);
       
       //Get Position
@@ -237,7 +238,7 @@ void loop() {
     }
     count++;
 
-    digitalWrite(6, LOW);
+    //digitalWrite(A0, LOW);
     delay(1000);
 
 }
