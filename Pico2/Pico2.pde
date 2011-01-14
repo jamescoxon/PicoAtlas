@@ -233,8 +233,16 @@ void loop() {
       rtty_txstring(superbuffer);
     }
     count++;
-
-    //digitalWrite(A0, LOW);
-    delay(1000);
+    
+    if (count < 1000) {
+      delay(1000);
+    }
+    else {
+      digitalWrite(A0, LOW);
+      delay(30000);
+      digitalWrite(A0, HIGH);
+      delay(3000);
+    }
+      
 
 }
