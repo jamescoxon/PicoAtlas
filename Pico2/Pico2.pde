@@ -180,8 +180,6 @@ void loop() {
     char superbuffer [120];
     char checksum [10];
     int n;
-    
-    //digitalWrite(A0, HIGH);
   
     Serial.println("$PUBX,00*33"); //Poll GPS
     
@@ -238,10 +236,10 @@ void loop() {
       delay(1000);
     }
     else {
-      digitalWrite(A0, LOW);
-      delay(30000);
-      digitalWrite(A0, HIGH);
-      delay(3000);
+      digitalWrite(A0, LOW); //radio sleep
+      delay(30000); //sleeping
+      digitalWrite(A0, HIGH);//radio on
+      delay(3000);// wait for it to 'tune' up
     }
       
 
