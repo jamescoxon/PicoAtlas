@@ -14,6 +14,7 @@ char latbuf[12] = "0", lonbuf[12] = "0";
 long int ialt = 123;
 int numbersats = 99;
 
+int txmode = 0;
 // ------------------------
 // RTTY Functions - from RJHARRISON's AVR Code
 void rtty_txstring (char * string)
@@ -225,7 +226,7 @@ void loop() {
       digitalWrite(13, LOW);
     }
     
-    n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%s,%s,%ld,%d,%d,%d", count, hour, minute, second, latbuf, lonbuf, ialt, navstatus, numbersats, navmode);
+    n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%s,%s,%ld,%d,%d,%d;%d", count, hour, minute, second, latbuf, lonbuf, ialt, navstatus, numbersats, navmode, txmode);
     if (n > -1){
       n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
       rtty_txstring(superbuffer);
@@ -234,12 +235,29 @@ void loop() {
     
     if (count < 1000) {
       delay(1000);
+      txmode = 0;
     }
     else {
-      digitalWrite(A0, LOW); //radio sleep
-      delay(30000); //sleeping
-      digitalWrite(A0, HIGH);//radio on
-      delay(3000);// wait for it to 'tune' up
+      if (hour > 6 && hour < 16) {
+        txmode = 1; //day mode
+        digitalWrite(A0, LOW); //radio sleep
+        delay(10000); //sleeping 10 seconds
+        digitalWrite(A0, HIGH);//radio on
+        delay(3000);// wait for it to 'tune' up
+      }
+      else if (hour > 16 && hour < 22) {
+        txmode = 0; //evening mode
+        digitalWrite(A0, HIGH);
+        delay(1000);
+      }
+      else {
+        txmode = 2; //night mode  
+        digitalWrite(A0, LOW); //radio sleep
+        delay(30000); //sleeping 30 seconds
+        digitalWrite(A0, HIGH);//radio on
+        delay(3000);// wait for it to 'tune' up
+      }
+
     }
       
 
