@@ -1,10 +1,8 @@
-#include <NewSoftSerial.h>
 #include "TinyGPS_3.h"
 #include <stdio.h>
 #include <util/crc16.h>
 
 TinyGPS gps;
-NewSoftSerial nss(2, 3);
 
 int count = 0, navstatus = 0;
 byte navmode = 99;
@@ -15,8 +13,6 @@ int hour = 0 , minute = 0 , second = 0;
 char latbuf[12] = "0", lonbuf[12] = "0";
 long int ialt = 123;
 int numbersats = 99;
-
-int temp0;
 
 // ------------------------
 // RTTY Functions - from RJHARRISON's AVR Code
@@ -96,37 +92,6 @@ uint16_t gps_CRC16_checksum (char *string)
  
 	return crc;
 }
-
-// Send a byte array of AT command to the Aerocomm
-void sendAT(uint8_t *MSG, uint8_t len) {
-  for(int i=0; i<len; i++) {
-    nss.print(MSG[i], BYTE);
-  }
-  nss.println("\r");
-}
-
-int getATresponse() {
-
-	int b;
-	int startTime = millis();
-	
-	// Process his response...
-	while (1) {
-		
-		// Timeout if no valid response in 3 seconds
-		if (millis() - startTime > 5000) { 
-			return -1;
-		}
-
-		// Make sure data is available to read
-		if (nss.available()) {
-			b = nss.read();
-		        Serial.print(b, HEX);
-		}
-	}
-  Serial.println();
-
-}
   
 // Send a byte array of UBX protocol to the GPS
 void sendUBX(uint8_t *MSG, uint8_t len) {
@@ -189,7 +154,6 @@ void setup()
   digitalWrite(A0, HIGH);
   digitalWrite(13, HIGH);
   Serial.begin(9600);
-  nss.begin(57600);
   
   delay(5000); // We have to wait for a bit for the GPS to boot otherwise the commands get missed
   
@@ -218,16 +182,6 @@ void loop() {
     int n;
     
     //digitalWrite(A0, HIGH);
-    nss.print("AT+++\r");
-    getATresponse();
-    
-    uint8_t ATstatus[] = {0xCC, 0xA4};
-    sendAT(ATstatus, sizeof(ATstatus)/sizeof(uint8_t));
-    getATresponse();
-
-    uint8_t stopAT[] = {0xCC, 0x41, 0x54, 0x4F};
-    sendAT(stopAT, sizeof(stopAT)/sizeof(uint8_t));
-    getATresponse();
   
     Serial.println("$PUBX,00*33"); //Poll GPS
     
@@ -276,7 +230,6 @@ void loop() {
     n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%s,%s,%ld,%d,%d,%d", count, hour, minute, second, latbuf, lonbuf, ialt, navstatus, numbersats, navmode);
     if (n > -1){
       n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
-      nss.println(superbuffer);
       rtty_txstring(superbuffer);
     }
     count++;
