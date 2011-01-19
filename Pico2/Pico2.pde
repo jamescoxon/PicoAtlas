@@ -229,6 +229,9 @@ void loop() {
     n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%s,%s,%ld,%d,%d,%d;%d", count, hour, minute, second, latbuf, lonbuf, ialt, navstatus, numbersats, navmode, txmode);
     if (n > -1){
       n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
+      if (txmode >= 1) {
+        rtty_txstring("UUUU");
+      }
       rtty_txstring(superbuffer);
     }
     count++;
@@ -245,7 +248,7 @@ void loop() {
         digitalWrite(A0, HIGH);//radio on
         delay(3000);// wait for it to 'tune' up
       }
-      else if (hour > 16 && hour < 22) {
+      else if (hour >= 16 && hour < 23) {
         txmode = 0; //evening mode
         digitalWrite(A0, HIGH);
         delay(1000);
