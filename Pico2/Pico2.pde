@@ -1,3 +1,5 @@
+#include <Narcoleptic.h>
+
 #include "TinyGPS_3.h"
 #include <stdio.h>
 #include <util/crc16.h>
@@ -61,7 +63,7 @@ void rtty_txbit (int bit)
 		if (bit)
 		{
 		  // high
-                    digitalWrite(A4, HIGH);
+                    digitalWrite(A4, HIGH);  
                     digitalWrite(A5, LOW);
                     digitalWrite(13, LOW); //LED  
 		}
@@ -172,6 +174,11 @@ void setup()
   uint8_t setNav[] = {0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF, 0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x05, 0x00, 0xFA, 0x00, 0xFA, 0x00, 0x64, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0xDC};
   sendUBX(setNav, sizeof(setNav)/sizeof(uint8_t));
   navmode = getUBXNAV5();
+ 
+  delay(500);
+  //set GPS to Eco mode (reduces current by 4mA)
+  uint8_t setEco[] = {0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x00, 0x04, 0x1D, 0x85};
+  sendUBX(setEco, sizeof(setEco)/sizeof(uint8_t));
   
   digitalWrite(13, LOW);
 
@@ -236,7 +243,7 @@ void loop() {
     }
     count++;
     
-    if (count < 1000) {
+    if (count < 500) {
       delay(1000);
       txmode = 0;
     }
@@ -244,21 +251,23 @@ void loop() {
       if (hour > 6 && hour < 16) {
         txmode = 1; //day mode
         digitalWrite(A0, LOW); //radio sleep
-        delay(10000); //sleeping 10 seconds
+        Narcoleptic.delay(5000); //needs to be half as the library is written for 16Mhz so sleeping 10 seconds
         digitalWrite(A0, HIGH);//radio on
-        delay(3000);// wait for it to 'tune' up
+        delay(5000);// wait for it to 'tune' up
       }
+      
       else if (hour >= 16 && hour < 23) {
         txmode = 0; //evening mode
         digitalWrite(A0, HIGH);
         delay(1000);
       }
+      
       else {
         txmode = 2; //night mode  
         digitalWrite(A0, LOW); //radio sleep
-        delay(30000); //sleeping 30 seconds
+        Narcoleptic.delay(30000); // sleeping 60 seconds
         digitalWrite(A0, HIGH);//radio on
-        delay(3000);// wait for it to 'tune' up
+        delay(5000);// wait for it to 'tune' up
       }
 
     }
