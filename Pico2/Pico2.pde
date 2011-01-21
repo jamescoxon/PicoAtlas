@@ -1,5 +1,4 @@
 #include <Narcoleptic.h>
-
 #include "TinyGPS_3.h"
 #include <stdio.h>
 #include <util/crc16.h>
@@ -276,7 +275,7 @@ void loop() {
         txmode = 2; //night mode  
         digitalWrite(A0, LOW); //radio sleep
         
-        if(nightloop > 15) {
+        if(nightloop > 15 && numbersats > 3) { // may need to add in '&& numbersats > 3' as in theory this could be indefinitely turning the gps on and off without a lock
           nightloop = 0;
           
           //turn off GPS
