@@ -6,7 +6,7 @@
 
 TinyGPS gps;
 
-int count = 0, navstatus = 0;
+int count = 0, navstatus = 0, nightloop = 0;
 byte navmode = 99;
 float flat, flon;
 unsigned long date, time, chars, age;
@@ -176,6 +176,7 @@ void setup()
   navmode = getUBXNAV5();
  
   delay(500);
+  
   //set GPS to Eco mode (reduces current by 4mA)
   uint8_t setEco[] = {0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x00, 0x04, 0x1D, 0x85};
   sendUBX(setEco, sizeof(setEco)/sizeof(uint8_t));
@@ -266,17 +267,27 @@ void loop() {
         txmode = 2; //night mode  
         digitalWrite(A0, LOW); //radio sleep
         
-        //turn off GPS
-        uint8_t GPSoff[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x16, 0x74};
-        sendUBX(GPSoff, sizeof(GPSoff)/sizeof(uint8_t));
+        if(nightloop > 15) {
+          nightloop = 0;
+          //turn off GPS
+          uint8_t GPSoff[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x16, 0x74};
+          sendUBX(GPSoff, sizeof(GPSoff)/sizeof(uint8_t));
+          
+          //Narcoleptic.delay(240000); // sleeping 8 minutes
+          delay(480000); //sleep 8 minutes
+          
+          //turn on GPS
+          uint8_t GPSon[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x09, 0x00, 0x17, 0x76};
+          sendUBX(GPSon, sizeof(GPSon)/sizeof(uint8_t));
+          
+          //Narcoleptic.delay(60000); // sleeping 8 minutes
+          delay(120000); // sleep 2 minutes
+        }
+        else {
+          Narcoleptic.delay(5000); //needs to be half as the library is written for 16Mhz so sleeping 10 seconds
+          nightloop++;
+        }
         
-        //Narcoleptic.delay(240000); // sleeping 8 minutes
-        delay(300000);
-        
-        uint8_t GPSon[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x09, 0x00, 0x17, 0x76};
-        sendUBX(GPSon, sizeof(GPSon)/sizeof(uint8_t));
-        //Narcoleptic.delay(60000); // sleeping 8 minutes
-        delay(120000);
         digitalWrite(A0, HIGH);//radio on
         delay(5000);// wait for it to 'tune' up
       }
