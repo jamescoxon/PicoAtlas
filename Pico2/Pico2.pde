@@ -265,7 +265,18 @@ void loop() {
       else {
         txmode = 2; //night mode  
         digitalWrite(A0, LOW); //radio sleep
-        Narcoleptic.delay(30000); // sleeping 60 seconds
+        
+        //turn off GPS
+        uint8_t GPSoff[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x16, 0x74};
+        sendUBX(GPSoff, sizeof(GPSoff)/sizeof(uint8_t));
+        
+        //Narcoleptic.delay(240000); // sleeping 8 minutes
+        delay(300000);
+        
+        uint8_t GPSon[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x09, 0x00, 0x17, 0x76};
+        sendUBX(GPSon, sizeof(GPSon)/sizeof(uint8_t));
+        //Narcoleptic.delay(60000); // sleeping 8 minutes
+        delay(120000);
         digitalWrite(A0, HIGH);//radio on
         delay(5000);// wait for it to 'tune' up
       }
