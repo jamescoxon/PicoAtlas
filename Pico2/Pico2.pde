@@ -148,6 +148,18 @@ int getUBXNAV5() {
 
 }
 
+void narcSleep(int num_loop) {
+     // sleeping x minutes
+     // num_loop = 48 = 8 minutes
+     // num)loop = 12 = 2 minutes
+   int narc_sleep = 0;
+   while(narc_sleep <= num_loop)
+   {
+     Narcoleptic.delay(5000);
+     narc_sleep++;
+   }
+}
+
 void setup()
 {
   pinMode(13, OUTPUT); //LED
@@ -249,7 +261,7 @@ void loop() {
       txmode = 0;
     }
     else {
-      if (hour > 6 && hour < 16) {
+      if (hour > 6 && hour < 17) {
         txmode = 1; //day mode
         digitalWrite(A0, LOW); //radio sleep
         Narcoleptic.delay(5000); //needs to be half as the library is written for 16Mhz so sleeping 10 seconds
@@ -257,7 +269,7 @@ void loop() {
         delay(5000);// wait for it to 'tune' up
       }
       
-      else if (hour >= 16 && hour < 23) {
+      else if (hour >= 17 && hour < 23) {
         txmode = 0; //evening mode
         digitalWrite(A0, HIGH);
         delay(1000);
@@ -269,19 +281,20 @@ void loop() {
         
         if(nightloop > 15) {
           nightloop = 0;
+          
           //turn off GPS
           uint8_t GPSoff[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x16, 0x74};
           sendUBX(GPSoff, sizeof(GPSoff)/sizeof(uint8_t));
           
-          //Narcoleptic.delay(240000); // sleeping 8 minutes
-          delay(480000); //sleep 8 minutes
+          narcSleep(48); // sleep 8 minutes
+          //delay(480000); //sleep 8 minutes
           
           //turn on GPS
           uint8_t GPSon[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x09, 0x00, 0x17, 0x76};
           sendUBX(GPSon, sizeof(GPSon)/sizeof(uint8_t));
           
-          //Narcoleptic.delay(60000); // sleeping 8 minutes
-          delay(120000); // sleep 2 minutes
+          narcSleep(12);  // sleep 2 minutes
+          //delay(120000); // sleep 2 minutes
         }
         else {
           Narcoleptic.delay(5000); //needs to be half as the library is written for 16Mhz so sleeping 10 seconds
