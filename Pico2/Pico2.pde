@@ -64,15 +64,13 @@ void rtty_txbit (int bit)
 		{
 		  // high
                     digitalWrite(A4, HIGH);  
-                    digitalWrite(A5, LOW);
-                    digitalWrite(13, LOW); //LED  
+                    digitalWrite(A5, LOW); 
 		}
 		else
 		{
 		  // low
                     digitalWrite(A5, HIGH);
                     digitalWrite(A4, LOW);
-                    digitalWrite(13, HIGH); //LED
 		}
 		//delayMicroseconds(20500); // 10000 = 100 BAUD 20150
                 delayMicroseconds(20000); // 10000 = 100 BAUD 20150
@@ -224,7 +222,6 @@ void loop() {
     navstatus = gps.navstatus();
     
     if (numbersats >= 1) {
-      digitalWrite(13, HIGH);
       
       //Get Position
       gps.f_get_position(&flat, &flon);
