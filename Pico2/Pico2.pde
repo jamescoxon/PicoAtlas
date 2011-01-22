@@ -260,7 +260,8 @@ void loop() {
       if (hour > 6 && hour < 17) {
         txmode = 1; //day mode
         digitalWrite(A0, LOW); //radio sleep
-        Narcoleptic.delay(5000); //needs to be half as the library is written for 16Mhz so sleeping 10 seconds
+        Narcoleptic.delay(5000);
+        Narcoleptic.delay(5000);
         digitalWrite(A0, HIGH);//radio on
         delay(5000);// wait for it to 'tune' up
       }
@@ -293,7 +294,8 @@ void loop() {
           delay(120000); // sleep 2 minutes
         }
         else {
-          Narcoleptic.delay(5000); //needs to be half as the library is written for 16Mhz so sleeping 10 seconds
+          Narcoleptic.delay(5000);
+          Narcoleptic.delay(5000);
           nightloop++;
         }
         
