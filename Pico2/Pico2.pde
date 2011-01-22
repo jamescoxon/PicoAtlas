@@ -282,15 +282,15 @@ void loop() {
           uint8_t GPSoff[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x16, 0x74};
           sendUBX(GPSoff, sizeof(GPSoff)/sizeof(uint8_t));
           
-          narcSleep(48); // sleep 8 minutes
-          //delay(480000); //sleep 8 minutes
+          //narcSleep(48); // sleep 8 minutes
+          delay(480000); //sleep 8 minutes
           
           //turn on GPS
           uint8_t GPSon[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x09, 0x00, 0x17, 0x76};
           sendUBX(GPSon, sizeof(GPSon)/sizeof(uint8_t));
           
-          narcSleep(12);  // sleep 2 minutes
-          //delay(120000); // sleep 2 minutes
+          //narcSleep(12);  // sleep 2 minutes
+          delay(120000); // sleep 2 minutes
         }
         else {
           Narcoleptic.delay(5000); //needs to be half as the library is written for 16Mhz so sleeping 10 seconds
