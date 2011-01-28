@@ -274,20 +274,15 @@ void loop() {
       txmode = 0;
     }
     else {
-      if (hour > 6 && hour < 18) {
+      if (hour > 6 && hour < 19) {
         txmode = 1; //day mode
         digitalWrite(A0, LOW); //radio sleep
         Narcoleptic.delay(5000);
         Narcoleptic.delay(5000);
         Narcoleptic.delay(5000);
+        Narcoleptic.delay(5000);
         digitalWrite(A0, HIGH);//radio on
         delay(5000);// wait for it to 'tune' up
-      }
-      
-      else if (hour >= 18 && hour < 21) {
-        txmode = 0; //evening mode
-        digitalWrite(A0, HIGH);
-        delay(1000);
       }
       
       else {
