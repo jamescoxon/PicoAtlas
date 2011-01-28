@@ -10,7 +10,7 @@ byte navmode = 99;
 float flat, flon;
 unsigned long date, time, chars, age;
 
-int hour = 0 , minute = 0 , second = 0;
+int hour = 0 , minute = 0 , second = 0, oldsecond = 0;
 char latbuf[12] = "0", lonbuf[12] = "0";
 long int ialt = 123;
 int numbersats = 99;
@@ -160,19 +160,8 @@ void narcSleep(int num_loop) {
    }
 }
 
-void setup()
-{
-  pinMode(8, OUTPUT); //LED
-  pinMode(A1, OUTPUT); //Radio Tx0
-  pinMode(A2, OUTPUT); //Radio Tx1
-  pinMode(A0, OUTPUT); //Radio En
-  digitalWrite(A0, HIGH);
-  digitalWrite(8, HIGH);
-  Serial.begin(9600);
-  
-  delay(5000); // We have to wait for a bit for the GPS to boot otherwise the commands get missed
-  
-  //Turning off all GPS NMEA strings apart on the uBlox module
+void setupGPS() {
+    //Turning off all GPS NMEA strings apart on the uBlox module
   Serial.println("$PUBX,40,GLL,0,0,0,0*5C");
   Serial.println("$PUBX,40,GGA,0,0,0,0*5A");
   Serial.println("$PUBX,40,GSA,0,0,0,0*4E");
@@ -192,6 +181,21 @@ void setup()
   //set GPS to Eco mode (reduces current by 4mA)
   uint8_t setEco[] = {0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x00, 0x04, 0x1D, 0x85};
   sendUBX(setEco, sizeof(setEco)/sizeof(uint8_t));
+}
+
+void setup()
+{
+  pinMode(8, OUTPUT); //LED
+  pinMode(A1, OUTPUT); //Radio Tx0
+  pinMode(A2, OUTPUT); //Radio Tx1
+  pinMode(A0, OUTPUT); //Radio En
+  digitalWrite(A0, HIGH);
+  digitalWrite(8, HIGH);
+  Serial.begin(9600);
+  
+  delay(5000); // We have to wait for a bit for the GPS to boot otherwise the commands get missed
+  
+  setupGPS();
   
   analogReference(EXTERNAL);
   digitalWrite(8, LOW);
@@ -217,6 +221,13 @@ void loop() {
         minute = ((time - (hour * 1000000)) / 10000);
         second = ((time - ((hour * 1000000) + (minute * 10000))));
         second = second / 100;
+        
+        if (second == oldsecond) {
+          setupGPS();
+        }
+        else {
+          oldsecond = second;
+        }
       }
     }
     
