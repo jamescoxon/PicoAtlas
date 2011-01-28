@@ -15,6 +15,7 @@ char latbuf[12] = "0", lonbuf[12] = "0";
 long int ialt = 123;
 int numbersats = 99;
 
+int battV;
 int txmode = 0;
 // ------------------------
 // RTTY Functions - from RJHARRISON's AVR Code
@@ -62,14 +63,16 @@ void rtty_txbit (int bit)
 		if (bit)
 		{
 		  // high
-                    digitalWrite(A4, HIGH);  
-                    digitalWrite(A5, LOW); 
+                    digitalWrite(A1, HIGH);  
+                    digitalWrite(A2, LOW);
+                   digitalWrite(8, LOW); 
 		}
 		else
 		{
 		  // low
-                    digitalWrite(A5, HIGH);
-                    digitalWrite(A4, LOW);
+                    digitalWrite(A2, HIGH);
+                    digitalWrite(A1, LOW);
+                    digitalWrite(8, HIGH);
 		}
 		//delayMicroseconds(20500); // 10000 = 100 BAUD 20150
                 delayMicroseconds(20000); // 10000 = 100 BAUD 20150
@@ -147,8 +150,8 @@ int getUBXNAV5() {
 
 void narcSleep(int num_loop) {
      // sleeping x minutes
-     // num_loop = 48 = 8 minutes
-     // num)loop = 12 = 2 minutes
+     // num_loop = 96 = 8 minutes
+     // num)loop = 24 = 2 minutes
    int narc_sleep = 0;
    while(narc_sleep <= num_loop)
    {
@@ -159,12 +162,12 @@ void narcSleep(int num_loop) {
 
 void setup()
 {
-  pinMode(13, OUTPUT); //LED
-  pinMode(A4, OUTPUT); //Radio Tx0
-  pinMode(A5, OUTPUT); //Radio Tx1
+  pinMode(8, OUTPUT); //LED
+  pinMode(A1, OUTPUT); //Radio Tx0
+  pinMode(A2, OUTPUT); //Radio Tx1
   pinMode(A0, OUTPUT); //Radio En
   digitalWrite(A0, HIGH);
-  digitalWrite(13, HIGH);
+  digitalWrite(8, HIGH);
   Serial.begin(9600);
   
   delay(5000); // We have to wait for a bit for the GPS to boot otherwise the commands get missed
@@ -190,7 +193,8 @@ void setup()
   uint8_t setEco[] = {0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x00, 0x04, 0x1D, 0x85};
   sendUBX(setEco, sizeof(setEco)/sizeof(uint8_t));
   
-  digitalWrite(13, LOW);
+  analogReference(EXTERNAL);
+  digitalWrite(8, LOW);
 
 }
 
@@ -216,6 +220,8 @@ void loop() {
       }
     }
     
+    battV = analogRead(4);
+    
     numbersats = gps.sats();
     
     navstatus = gps.navstatus();
@@ -239,10 +245,10 @@ void loop() {
       ialt = (gps.altitude() / 100);    
     }
     else {
-      digitalWrite(13, LOW);
+      digitalWrite(8, LOW);
     }
     
-    n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%s,%s,%ld,%d,%d,%d;%d", count, hour, minute, second, latbuf, lonbuf, ialt, navstatus, numbersats, navmode, txmode);
+    n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%s,%s,%ld,%d,%d,%d;%d;%d", count, hour, minute, second, latbuf, lonbuf, ialt, navstatus, numbersats, navmode, txmode, battV);
     if (n > -1){
       n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
       if (txmode >= 1) {
@@ -257,7 +263,7 @@ void loop() {
       txmode = 0;
     }
     else {
-      if (hour > 6 && hour < 17) {
+      if (hour > 6 && hour < 18) {
         txmode = 1; //day mode
         digitalWrite(A0, LOW); //radio sleep
         Narcoleptic.delay(5000);
@@ -267,7 +273,7 @@ void loop() {
         delay(5000);// wait for it to 'tune' up
       }
       
-      else if (hour >= 17 && hour < 22) {
+      else if (hour >= 18 && hour < 21) {
         txmode = 0; //evening mode
         digitalWrite(A0, HIGH);
         delay(1000);
@@ -284,15 +290,15 @@ void loop() {
           uint8_t GPSoff[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x16, 0x74};
           sendUBX(GPSoff, sizeof(GPSoff)/sizeof(uint8_t));
           
-          //narcSleep(48); // sleep 8 minutes
-          delay(480000); //sleep 8 minutes
+          narcSleep(96); // sleep 8 minutes
+          //delay(480000); //sleep 8 minutes
           
           //turn on GPS
           uint8_t GPSon[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x09, 0x00, 0x17, 0x76};
           sendUBX(GPSon, sizeof(GPSon)/sizeof(uint8_t));
           
-          //narcSleep(12);  // sleep 2 minutes
-          delay(120000); // sleep 2 minutes
+          narcSleep(24);  // sleep 2 minutes
+          //delay(120000); // sleep 2 minutes
         }
         else {
           Narcoleptic.delay(5000);
