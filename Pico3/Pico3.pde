@@ -1,9 +1,15 @@
+#include <OneWire.h>
 #include <Narcoleptic.h>
 #include "TinyGPS_3.h"
 #include <stdio.h>
 #include <util/crc16.h>
 
 TinyGPS gps;
+OneWire ds(A5); // DS18x20 Temperature chip i/o One-wire
+
+//Tempsensor variables
+byte address0[8] = {0x28, 0x26, 0xF5, 0x2D, 0x2, 0x0, 0x0, 0xCC}; // Internal DS18B20 GPS Sensor
+int temp0 = 0;
 
 int count = 0, navstatus = 0, nightloop = 0;
 byte navmode = 99;
@@ -183,12 +189,58 @@ void setupGPS() {
   sendUBX(setEco, sizeof(setEco)/sizeof(uint8_t));
 }
 
+// gets temperature data from onewire sensor network, need to supply byte address, it'll check to see what type of sensor and convert appropriately
+int getTempdata(byte sensorAddress[8]) {
+  int HighByte, LowByte, TReading, SignBit, Tc_100, Whole;
+  byte data[12], i, present = 0;
+  
+  ds.reset();
+  ds.select(sensorAddress);
+  ds.write(0x44,1);         // start conversion, with parasite power on at the end
+
+  delay(1000);     // maybe 750ms is enough, maybe not
+  // we might do a ds.depower() here, but the reset will take care of it.
+
+  present = ds.reset();
+  ds.select(sensorAddress);    
+  ds.write(0xBE);         // Read Scratchpad
+
+  for ( i = 0; i < 9; i++) {           // we need 9 bytes
+    data[i] = ds.read();
+  }
+ LowByte = data[0];
+  HighByte = data[1];
+  TReading = (HighByte << 8) + LowByte;
+  SignBit = TReading & 0x8000;  // test most sig bit
+  if (SignBit) // negative
+  {
+    TReading = (TReading ^ 0xffff) + 1; // 2's comp
+  }
+  
+  if (sensorAddress[0] == 0x10) {
+    Tc_100 = TReading * 50;    // multiply by (100 * 0.0625) or 6.25
+  }
+  else { 
+    Tc_100 = (6 * TReading) + TReading / 4;    // multiply by (100 * 0.0625) or 6.25
+  }
+  
+  
+  Whole = Tc_100 / 100;  // separate off the whole and fractional portions
+
+  if (SignBit) // If its negative
+  {
+     Whole = Whole * -1;
+  }
+  return Whole;
+}
+
 void setup()
 {
   pinMode(8, OUTPUT); //LED
   pinMode(A1, OUTPUT); //Radio Tx0
   pinMode(A2, OUTPUT); //Radio Tx1
   pinMode(A0, OUTPUT); //Radio En
+  //pinMode(A5, OUTPUT); //Radio En
   digitalWrite(A0, HIGH);
   digitalWrite(8, HIGH);
   Serial.begin(9600);
@@ -232,6 +284,7 @@ void loop() {
     }
     
     battV = analogRead(4);
+    temp0 = getTempdata(address0);
     
     numbersats = gps.sats();
     
@@ -259,7 +312,7 @@ void loop() {
       digitalWrite(8, LOW);
     }
     
-    n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%s,%s,%ld,%d,%d,%d;%d;%d", count, hour, minute, second, latbuf, lonbuf, ialt, navstatus, numbersats, navmode, txmode, battV);
+    n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%s,%s,%ld,%d,%d,%d;%d;%d;%d", count, hour, minute, second, latbuf, lonbuf, ialt, navstatus, numbersats, navmode, txmode, battV, temp0);
     if (n > -1){
       n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
       if (txmode >= 1) {
@@ -269,7 +322,7 @@ void loop() {
     }
     count++;
     
-    if (count < 500) {
+    if (count < 2) {
       delay(1000);
       txmode = 0;
     }
