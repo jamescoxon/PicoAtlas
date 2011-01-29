@@ -8,7 +8,7 @@ TinyGPS gps;
 OneWire ds(A5); // DS18x20 Temperature chip i/o One-wire
 
 //Tempsensor variables
-byte address0[8] = {0x28, 0x26, 0xF5, 0x2D, 0x2, 0x0, 0x0, 0xCC}; // Internal DS18B20 GPS Sensor
+byte address0[8] = {0x28, 0xE8, 0x89, 0xC2, 0x2, 0x0, 0x0, 0xDF}; // External DS18B20 GPS Sensor 28 E8 89 C2 2 0 0 DF
 int temp0 = 0;
 
 int count = 0, navstatus = 0, nightloop = 0;
@@ -71,14 +71,12 @@ void rtty_txbit (int bit)
 		  // high
                     digitalWrite(A1, HIGH);  
                     digitalWrite(A2, LOW);
-                   digitalWrite(8, LOW); 
 		}
 		else
 		{
 		  // low
                     digitalWrite(A2, HIGH);
                     digitalWrite(A1, LOW);
-                    digitalWrite(8, HIGH);
 		}
 		//delayMicroseconds(20500); // 10000 = 100 BAUD 20150
                 delayMicroseconds(20000); // 10000 = 100 BAUD 20150
@@ -236,13 +234,10 @@ int getTempdata(byte sensorAddress[8]) {
 
 void setup()
 {
-  pinMode(8, OUTPUT); //LED
   pinMode(A1, OUTPUT); //Radio Tx0
   pinMode(A2, OUTPUT); //Radio Tx1
   pinMode(A0, OUTPUT); //Radio En
-  //pinMode(A5, OUTPUT); //Radio En
   digitalWrite(A0, HIGH);
-  digitalWrite(8, HIGH);
   Serial.begin(9600);
   
   delay(5000); // We have to wait for a bit for the GPS to boot otherwise the commands get missed
@@ -250,7 +245,6 @@ void setup()
   setupGPS();
   
   analogReference(EXTERNAL);
-  digitalWrite(8, LOW);
 
 }
 
@@ -308,9 +302,6 @@ void loop() {
       // +/- altitude in meters
       ialt = (gps.altitude() / 100);    
     }
-    else {
-      digitalWrite(8, LOW);
-    }
     
     n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%s,%s,%ld,%d,%d,%d;%d;%d;%d", count, hour, minute, second, latbuf, lonbuf, ialt, navstatus, numbersats, navmode, txmode, battV, temp0);
     if (n > -1){
@@ -322,7 +313,7 @@ void loop() {
     }
     count++;
     
-    if (count < 2) {
+    if (count < 500) {
       delay(1000);
       txmode = 0;
     }
@@ -342,7 +333,7 @@ void loop() {
         txmode = 2; //night mode  
         digitalWrite(A0, LOW); //radio sleep
         
-        if(nightloop > 15 && numbersats > 3) { // may need to add in '&& numbersats > 3' as in theory this could be indefinitely turning the gps on and off without a lock
+        if(nightloop >= 10 && numbersats > 3) { // may need to add in '&& numbersats > 3' as in theory this could be indefinitely turning the gps on and off without a lock
           nightloop = 0;
           
           //turn off GPS
