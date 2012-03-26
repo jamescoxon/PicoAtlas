@@ -167,7 +167,8 @@ void setup() {
   delay(5000);
   
   setupGPS();
-
+  
+  setupRadio();
   
   digitalWrite(A3, LOW);
 }
