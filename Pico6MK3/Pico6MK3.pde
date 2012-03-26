@@ -11,7 +11,7 @@ rfm22 radio1(10);
 TinyGPS gps;
 
 //
-//BMP085 bmp;
+BMP085 bmp;
 
 //Variables
 long int ialt = 123, lat = 0, lon = 0, pressure = 0;
@@ -275,7 +275,7 @@ void setup() {
   digitalWrite(5, HIGH);
   Serial.begin(9600);
   
-  //bmp.begin(); 
+  bmp.begin(); 
   
   delay(1000);
   
@@ -287,7 +287,6 @@ void setup() {
 void loop() {
   count++;
   Serial.println("$PUBX,00*33"); //Poll GPS
-  delay(500);
   while (Serial.available())
   {
     digitalWrite(13, HIGH);
@@ -311,8 +310,8 @@ void loop() {
     digitalWrite(13, LOW);
   }
   
-  //temperature = bmp.readTemperature();
-  //pressure = bmp.readPressure();
+  temperature = bmp.readTemperature();
+  pressure = bmp.readPressure();
 
   n=sprintf (superbuffer, "PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%ld", count, hour, minute, second, lat, lon, ialt, temperature, pressure);
   n = sprintf (superbuffer, "%s*%02X\n", superbuffer, gps_checksum(superbuffer));
@@ -346,7 +345,7 @@ void loop() {
     }
   }
   else{
-    //Serial.println(superbuffer);
+    Serial.println(superbuffer);
     delay(5000);
   }
   
