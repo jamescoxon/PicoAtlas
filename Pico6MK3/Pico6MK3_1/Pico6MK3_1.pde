@@ -161,14 +161,13 @@ void setup() {
   pinMode(9, OUTPUT);
   pinMode(A3, OUTPUT);
   digitalWrite(A3, HIGH);
+  //Make sure the radio is in shutdown mode
   digitalWrite(9, HIGH);
   Serial.begin(9600);
   
   delay(5000);
   
   setupGPS();
-  
-  setupRadio();
   
   digitalWrite(A3, LOW);
 }
@@ -197,9 +196,21 @@ void loop() {
       // +/- altitude in meters
       ialt = (gps.altitude() / 100); 
       
-      if(firstlock == 0 && lat != 0){
+      if(lat != 0){
+        //Only set the GPS to power save mode when we have got a lock,
+        // if it is set too early it'll reset the GPS losing all the 
+        // settings
+        if(firstlock == 0){
           setupGPSpower();
-          firstlock = 1;
+        }
+        //Start Radio transmitting after 5 loops with a lock - this is to
+        // avoid drawing too much current the GPS should have dropped into
+        // low power mode
+        if(firstlock == 5){
+          setupRadio();
+        }
+        
+        firstlock++;
       }
     }
     digitalWrite(A3, LOW);
