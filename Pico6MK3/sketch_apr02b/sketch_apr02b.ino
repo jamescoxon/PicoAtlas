@@ -1,6 +1,5 @@
 /* GPS Code from jonsowman and Joey flight computer CUSF
 */
-
 #include <SPI.h>
 #include <RFM22.h>
 #include <util/crc16.h>
@@ -478,44 +477,3 @@ void loop() {
   }
     
 }
-  /*
-  count++;
-
-  gps_check_lock();
-
-  if( lock == 0x02 || lock == 0x03 || lock == 0x04 )
-  {
-      gps_get_position();
-      gps_get_time();
-  }
-
-  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d", count, hour, minute, second, lat, lon, alt, sats);
-  n = sprintf (superbuffer, "%s*%02X\n", superbuffer, gps_CRC16_checksum(superbuffer));
-  //if daytime use RTTY
-  if(hour > 6 && hour < 18) {
-    if(gpsstatus == 0){
-      gpsPower(1); // turn GPS on
-    }
-    rtty_txstring(superbuffer);
-    }
-  else{
-  
-    gpsPower(0); //turn GPS off
-    
-    radio1.write(0x07, 0x08); // turn tx on
-    
-    hellsendmsg(superbuffer);
-    
-    startTime = millis();
-    while(millis() - startTime < 300000) {
-        radio1.write(0x07, 0x08); // turn tx on
-        delay(500);
-        radio1.write(0x07, 0x01); // turn tx off
-        delay(10000);
-        if((millis() - startTime > 240000) && gpsstatus == 0) {
-          gpsPower(1); //turn GPS on
-        }
-    }
-    }
-}
-*/
