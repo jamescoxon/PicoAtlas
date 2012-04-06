@@ -454,12 +454,13 @@ void loop() {
         n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d", count, hour, minute, second, lat, lon, alt, sats);
         n = sprintf (superbuffer, "%s*%02X\n", superbuffer, gps_CRC16_checksum(superbuffer));
         
-        while(hour > 6 && hour < 20) {
+        while(hour > 6 && hour < 18) {
           gps_check_lock();
           
           radio1.write(0x07, 0x08); // turn tx on
           gps_get_position();
           gps_get_time();
+          count++;
           n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d", count, hour, minute, second, lat, lon, alt, sats);
           n = sprintf (superbuffer, "%s*%02X\n", superbuffer, gps_CRC16_checksum(superbuffer));
           rtty_txstring(superbuffer);
