@@ -303,7 +303,7 @@ void loop() {
       
       // +/- altitude in meters
       ialt = (gps.altitude() / 100); 
-      
+      /*
       if(lat != 0){
         //Only set the GPS to power save mode when we have got a lock,
         // if it is set too early it'll reset the GPS losing all the 
@@ -320,26 +320,31 @@ void loop() {
         
         firstlock++;
       }
+      */
     }
     digitalWrite(A3, LOW);
   }
   
-  if(firstlock > 5) {
     n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d", count, hour, minute, second, lat, lon, ialt, navmode);
     n = sprintf (superbuffer, "%s*%02X\n", superbuffer, gps_CRC16_checksum(superbuffer));
     
     radio1.write(0x07, 0x08); // turn tx on
     
     if(hour >= 19 || hour <= 8) {
-      hellsendmsg(superbuffer);
+      //hellsendmsg(superbuffer);
+      
+      //turn off GPS
+      uint8_t GPSoff[] = {0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x4D, 0x3B};
+      sendUBX(GPSoff, sizeof(GPSoff)/sizeof(uint8_t));
+      delay(30000);
+      
+      //turn on GPS
+      uint8_t GPSon[] = {0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x4C, 0x37};
+      sendUBX(GPSon, sizeof(GPSon)/sizeof(uint8_t));
     }
     else {
       rtty_txstring("UUUU");
       rtty_txstring(superbuffer);
     }
-  }
-  else {
-    delay(5000);
-  }
   
 }
