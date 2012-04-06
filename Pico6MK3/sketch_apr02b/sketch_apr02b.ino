@@ -1,3 +1,6 @@
+/* GPS Code from jonsowman and Joey flight computer CUSF
+*/
+
 #include <SPI.h>
 #include <RFM22.h>
 #include <util/crc16.h>
