@@ -10,10 +10,11 @@ rfm22 radio1(10);
 //Variables
 int32_t lat = 0, lon = 0, alt = 0;
 uint8_t hour = 0, minute = 0, second = 0, lock = 0, sats = 0;
-unsigned long startTime, startGPS = 0;
-uint8_t buf[60];
+unsigned long startGPS = 0;
 int GPSerror = 0, count = 0, n, gpsstatus;
-char superbuffer [80];
+
+uint8_t buf[60]; //GPS receive buffer
+char superbuffer [80]; //Telem string buffer
 
 // RTTY Functions - from RJHARRISON's AVR Code
 void rtty_txstring (char * string)
@@ -303,7 +304,7 @@ bool _gps_verify_checksum(uint8_t* data, uint8_t len)
 void gps_get_data()
 {
     int i = 0;
-    startTime = millis();
+    unsigned long startTime = millis();
     while (1) {
     // Make sure data is available to read
     if (Serial.available()) {
