@@ -322,6 +322,7 @@ void gps_get_data()
  */
 void gps_check_lock()
 {
+    GPSerror = 0;
     Serial.flush();
     // Construct the request to the GPS
     uint8_t request[8] = {0xB5, 0x62, 0x01, 0x06, 0x00, 0x00,
@@ -342,7 +343,8 @@ void gps_check_lock()
     if( !_gps_verify_checksum(&buf[2], 56) ) {
       GPSerror = 13;
     }
-
+    
+    if(GPSerror == 0){
     // Return the value if GPSfixOK is set in 'flags'
     if( buf[17] & 0x01 )
         lock = buf[16];
@@ -350,6 +352,10 @@ void gps_check_lock()
         lock = 0;
 
     sats = buf[53];
+    }
+    else {
+      lock = 0;
+    }
 }
 
 /**
@@ -358,6 +364,7 @@ void gps_check_lock()
  */
 void gps_get_position()
 {
+    GPSerror = 0;
     Serial.flush();
     // Request a NAV-POSLLH message from the GPS
     uint8_t request[8] = {0xB5, 0x62, 0x01, 0x02, 0x00, 0x00, 0x03,
@@ -376,19 +383,23 @@ void gps_get_position()
     if( !_gps_verify_checksum(&buf[2], 32) ) {
       GPSerror = 23;
     }
-
-    // 4 bytes of longitude (1e-7)
-    lon = (int32_t)buf[10] | (int32_t)buf[11] << 8 | 
-        (int32_t)buf[12] << 16 | (int32_t)buf[13] << 24;
     
-    // 4 bytes of latitude (1e-7)
-    lat = (int32_t)buf[14] | (int32_t)buf[15] << 8 | 
-        (int32_t)buf[16] << 16 | (int32_t)buf[17] << 24;
-    
-    // 4 bytes of altitude above MSL (mm)
-    alt = (int32_t)buf[22] | (int32_t)buf[23] << 8 | 
-        (int32_t)buf[24] << 16 | (int32_t)buf[25] << 24;
-    alt /= 1000;
+    if(GPSerror == 0) {
+      // 4 bytes of longitude (1e-7)
+      lon = (int32_t)buf[10] | (int32_t)buf[11] << 8 | 
+          (int32_t)buf[12] << 16 | (int32_t)buf[13] << 24;
+      lon /= 1000;
+      
+      // 4 bytes of latitude (1e-7)
+      lat = (int32_t)buf[14] | (int32_t)buf[15] << 8 | 
+          (int32_t)buf[16] << 16 | (int32_t)buf[17] << 24;
+      lat /= 1000;
+      
+      // 4 bytes of altitude above MSL (mm)
+      alt = (int32_t)buf[22] | (int32_t)buf[23] << 8 | 
+          (int32_t)buf[24] << 16 | (int32_t)buf[25] << 24;
+      alt /= 1000;
+    }
 
 }
 
@@ -398,6 +409,7 @@ void gps_get_position()
  */
 void gps_get_time()
 {
+    GPSerror = 0;
     Serial.flush();
     // Send a NAV-TIMEUTC message to the receiver
     uint8_t request[8] = {0xB5, 0x62, 0x01, 0x21, 0x00, 0x00,
@@ -417,9 +429,17 @@ void gps_get_time()
       GPSerror = 33;
     }
     
-    hour = buf[22];
-    minute = buf[23];
-    second = buf[24];
+    if(GPSerror == 0) {
+      if(hour > 23 || minute > 59 || second > 59)
+      {
+        GPSerror = 34;
+      }
+      else {
+        hour = buf[22];
+        minute = buf[23];
+        second = buf[24];
+      }
+    }
 }
 
 void setup() {
@@ -446,14 +466,10 @@ void loop() {
     else {
       gps_check_lock();
   
-      if( lock == 0x02 || lock == 0x03 || lock == 0x04 )
+      if( lock == 0x03 || lock == 0x04 )
       {
-        count++;
-        gps_get_position();
         gps_get_time();
-        n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d", count, hour, minute, second, lat, lon, alt, sats);
-        n = sprintf (superbuffer, "%s*%02X\n", superbuffer, gps_CRC16_checksum(superbuffer));
-        
+
         while(hour > 6 && hour < 18) {
           gps_check_lock();
           
@@ -466,8 +482,11 @@ void loop() {
           rtty_txstring(superbuffer);
           delay(1000);
         }
+        gps_get_position();
         gpsPower(0); //turn GPS off
-        
+        count++;
+        n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d", count, hour, minute, second, lat, lon, alt, sats);
+        n = sprintf (superbuffer, "%s*%02X\n", superbuffer, gps_CRC16_checksum(superbuffer));
         radio1.write(0x07, 0x08); // turn tx on
         
         hellsendmsg(superbuffer);
