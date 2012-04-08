@@ -11,7 +11,7 @@ rfm22 radio1(10);
 int32_t lat = 0, lon = 0, alt = 0;
 uint8_t hour = 0, minute = 0, second = 0, lock = 0, sats = 0;
 unsigned long startGPS = 0;
-int GPSerror = 0, count = 0, n, gpsstatus;
+int GPSerror = 0, count = 0, n, gpsstatus, lockcount = 0;
 
 uint8_t buf[60]; //GPS receive buffer
 char superbuffer [80]; //Telem string buffer
@@ -473,6 +473,16 @@ void loop() {
 
         while(hour > 6 && hour < 18) {
           gps_check_lock();
+          if (lock == 0x03 || lock == 0x04) {
+            lockcount = 0;
+          }
+          else {
+            lockcount++;
+            if (lockcount > 10){
+              lockcount = 0;
+              break;
+            }
+          }
           
           radio1.write(0x07, 0x08); // turn tx on
           gps_get_position();
@@ -483,6 +493,7 @@ void loop() {
           rtty_txstring(superbuffer);
           delay(1000);
         }
+        
         gps_get_position();
         gpsPower(0); //turn GPS off
         count++;
