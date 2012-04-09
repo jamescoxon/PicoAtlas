@@ -508,7 +508,7 @@ void loop() {
           count++;
           battV = analogRead(5);
           n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV);
-          n = sprintf (superbuffer, "%s*%02X\n", superbuffer, gps_CRC16_checksum(superbuffer));
+          n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
           rtty_txstring(superbuffer);
           if (count % 10 == 0){
             PSMgps();
@@ -521,7 +521,7 @@ void loop() {
         count++;
         battV = analogRead(5);
         n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV);
-        n = sprintf (superbuffer, "%s*%02X\n", superbuffer, gps_CRC16_checksum(superbuffer));
+        n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
         radio1.write(0x07, 0x08); // turn tx on
         
         hellsendmsg(superbuffer);
