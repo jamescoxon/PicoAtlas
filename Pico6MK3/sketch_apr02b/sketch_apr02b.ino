@@ -11,7 +11,7 @@ rfm22 radio1(10);
 int32_t lat = 0, lon = 0, alt = 0;
 uint8_t hour = 0, minute = 0, second = 0, lock = 0, sats = 0;
 unsigned long startGPS = 0;
-int GPSerror = 0, count = 0, n, gpsstatus, lockcount = 0;
+int GPSerror = 0, count = 0, n, gpsstatus, lockcount = 0, battV = 0;
 
 uint8_t buf[60]; //GPS receive buffer
 char superbuffer [80]; //Telem string buffer
@@ -209,6 +209,8 @@ void setupRadio(){
   
   radio1.setFrequency(434.201);
   
+  radio1.write(0x6D, 0x04);// turn tx low power 8db
+  
   radio1.write(0x07, 0x08); // turn tx on
   delay(1000);
   radio1.write(0x07, 0x01); // turn tx off
@@ -249,6 +251,22 @@ void setupGPS() {
   Serial.println("$PUBX,40,VTG,0,0,0,0*5E");
   delay(3000); // Wait for the GPS to process all the previous commands
   
+}
+
+void PSMgps(){
+   uint8_t setPSM[] = { 0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x08, 0x01, 0x22, 0x92 }; // Setup for Power Save Mode (Default Cyclic 1s)
+   sendUBX(setPSM, sizeof(setPSM)/sizeof(uint8_t));
+   
+  uint8_t setINT[] = {0xB5 , 0x62 , 0x06 , 0x3B , 0x2C , 0x00 , 0x01 , 0x06 , 0x00 , 0x00 , 0x00 , 0x81 , 0x03 , 0x00 , 0x88 , 0x13 , 0x00 , 0x00 , 0x10 , 0x27 , 0x00 , 0x00 , 0x00 , 0x00 , 0x00 , 0x00 , 0x02 , 0x00 , 0x0a , 0x00 , 0x2C , 0x01 , 0x00 , 0x00 , 0x4F , 0xC1 , 0x03 , 0x00 , 0x87 , 0x02 , 0x00 , 0x00 , 0xFf , 0x00 , 0x00 , 0x00 , 0x64 , 0x40 , 0x01 , 0x00 , 0x43 , 0x42 }; // Setup for Power Save Mode (Default Cyclic 1s)
+   
+   sendUBX(setINT, sizeof(setINT)/sizeof(uint8_t));   //set 5 second cycle mode
+   
+   delay(1000);
+   
+  //Set GPS ot Power Save Mode
+  
+   
+  sendUBX(setPSM, sizeof(setPSM)/sizeof(uint8_t));  // put it back in cyclic mode - keeps interval settings
 }
 
 void gpsPower(int i){
@@ -389,12 +407,12 @@ void gps_get_position()
       // 4 bytes of longitude (1e-7)
       lon = (int32_t)buf[10] | (int32_t)buf[11] << 8 | 
           (int32_t)buf[12] << 16 | (int32_t)buf[13] << 24;
-      lon /= 1000;
+      //lon /= 1000;
       
       // 4 bytes of latitude (1e-7)
       lat = (int32_t)buf[14] | (int32_t)buf[15] << 8 | 
           (int32_t)buf[16] << 16 | (int32_t)buf[17] << 24;
-      lat /= 1000;
+      //lat /= 1000;
       
       // 4 bytes of altitude above MSL (mm)
       alt = (int32_t)buf[22] | (int32_t)buf[23] << 8 | 
@@ -488,16 +506,21 @@ void loop() {
           gps_get_position();
           gps_get_time();
           count++;
-          n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d", count, hour, minute, second, lat, lon, alt, sats);
+          battV = analogRead(5);
+          n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV);
           n = sprintf (superbuffer, "%s*%02X\n", superbuffer, gps_CRC16_checksum(superbuffer));
           rtty_txstring(superbuffer);
+          if (count % 10 == 0){
+            PSMgps();
+          }
           delay(1000);
         }
         
         gps_get_position();
         gpsPower(0); //turn GPS off
         count++;
-        n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d", count, hour, minute, second, lat, lon, alt, sats);
+        battV = analogRead(5);
+        n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV);
         n = sprintf (superbuffer, "%s*%02X\n", superbuffer, gps_CRC16_checksum(superbuffer));
         radio1.write(0x07, 0x08); // turn tx on
         
