@@ -254,19 +254,10 @@ void setupGPS() {
 }
 
 void PSMgps(){
-   uint8_t setPSM[] = { 0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x08, 0x01, 0x22, 0x92 }; // Setup for Power Save Mode (Default Cyclic 1s)
-   sendUBX(setPSM, sizeof(setPSM)/sizeof(uint8_t));
-   
-  uint8_t setINT[] = {0xB5 , 0x62 , 0x06 , 0x3B , 0x2C , 0x00 , 0x01 , 0x06 , 0x00 , 0x00 , 0x00 , 0x81 , 0x03 , 0x00 , 0x88 , 0x13 , 0x00 , 0x00 , 0x10 , 0x27 , 0x00 , 0x00 , 0x00 , 0x00 , 0x00 , 0x00 , 0x02 , 0x00 , 0x0a , 0x00 , 0x2C , 0x01 , 0x00 , 0x00 , 0x4F , 0xC1 , 0x03 , 0x00 , 0x87 , 0x02 , 0x00 , 0x00 , 0xFf , 0x00 , 0x00 , 0x00 , 0x64 , 0x40 , 0x01 , 0x00 , 0x43 , 0x42 }; // Setup for Power Save Mode (Default Cyclic 1s)
-   
-   sendUBX(setINT, sizeof(setINT)/sizeof(uint8_t));   //set 5 second cycle mode
-   
-   delay(1000);
-   
-  //Set GPS ot Power Save Mode
-  
-   
-  sendUBX(setPSM, sizeof(setPSM)/sizeof(uint8_t));  // put it back in cyclic mode - keeps interval settings
+   setupGPS();
+   //set GPS to Eco mode (reduces current by 4mA)
+   uint8_t setEco[] = {0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x00, 0x04, 0x1D, 0x85};
+   sendUBX(setEco, sizeof(setEco)/sizeof(uint8_t));
 }
 
 void gpsPower(int i){
@@ -502,7 +493,7 @@ void loop() {
             }
           }
           
-          radio1.write(0x07, 0x08); // turn tx on
+          radio1.write(0x07, 0x08); // turn tx on`
           gps_get_position();
           gps_get_time();
           count++;
@@ -510,7 +501,7 @@ void loop() {
           n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV);
           n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
           rtty_txstring(superbuffer);
-          if (count % 10 == 0){
+          if (count % 50 == 0){
             PSMgps();
           }
           delay(1000);
