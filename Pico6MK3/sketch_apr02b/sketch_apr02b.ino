@@ -5,7 +5,7 @@
 #include <util/crc16.h>
 
 //Setup radio on SPI with NSEL on pin 9
-rfm22 radio1(10);
+rfm22 radio1(6);
 
 //Variables
 int32_t lat = 0, lon = 0, alt = 0;
@@ -192,7 +192,7 @@ void sendUBX(uint8_t *MSG, uint8_t len) {
 
 void setupRadio(){
   
-  digitalWrite(9, LOW);
+  digitalWrite(7, LOW);
   
   delay(1000);
   
@@ -452,9 +452,19 @@ void gps_get_time()
     }
 }
 
+void prepData() {
+  gps_get_position();
+  gps_get_time();
+  count++;
+  battV = analogRead(2);
+  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV);
+  n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
+}
+
 void setup() {
-  pinMode(9, OUTPUT);
-  digitalWrite(9, HIGH);
+  pinMode(7, OUTPUT);
+  pinMode(6, OUTPUT);
+  digitalWrite(7, HIGH);
   Serial.begin(9600);
   delay(500);
   gpsPower(0);
@@ -494,12 +504,7 @@ void loop() {
           }
           
           radio1.write(0x07, 0x08); // turn tx on`
-          gps_get_position();
-          gps_get_time();
-          count++;
-          battV = analogRead(5);
-          n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV);
-          n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
+          prepData();
           rtty_txstring(superbuffer);
           if (count % 50 == 0){
             PSMgps();
@@ -507,14 +512,9 @@ void loop() {
           delay(1000);
         }
         
-        gps_get_position();
         gpsPower(0); //turn GPS off
-        count++;
-        battV = analogRead(5);
-        n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV);
-        n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
+        prepData();
         radio1.write(0x07, 0x08); // turn tx on
-        
         hellsendmsg(superbuffer);
         startGPS = millis();
       }
