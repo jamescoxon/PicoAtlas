@@ -490,6 +490,10 @@ void loop() {
       {
         gps_get_time();
 
+        //This is the daytime loop, operates between 0700 and 1700
+        // 2 situations will break out of this loop - either outside the time
+        // or that we've lost gps lock (though we give it 10 loops in an attempt
+        // to regain lock)
         while(hour > 6 && hour < 18) {
           gps_check_lock();
           if (lock == 0x03 || lock == 0x04) {
@@ -510,8 +514,9 @@ void loop() {
             PSMgps();
           }
           delay(1000);
-        }
+        } //End of the daytime loop
         
+        //This is the night time and default setup
         gpsPower(0); //turn GPS off
         prepData();
         radio1.write(0x07, 0x08); // turn tx on
