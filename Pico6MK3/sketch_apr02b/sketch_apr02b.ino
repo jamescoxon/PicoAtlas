@@ -511,7 +511,7 @@ void loop() {
           prepData();
           rtty_txstring(superbuffer);
           if (count % 50 == 0){
-            PSMgps();
+            PSMgps(); //re do power saving setup, currently only sets to Eco as low power modes are unstable
           }
           delay(1000);
         } //End of the daytime loop
