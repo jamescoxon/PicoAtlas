@@ -1,4 +1,6 @@
 /* GPS Code from jonsowman and Joey flight computer CUSF
+* https://github.com/cuspaceflight/joey-m/tree/master/firmware
+* 
 */
 #include <SPI.h>
 #include <RFM22.h>
