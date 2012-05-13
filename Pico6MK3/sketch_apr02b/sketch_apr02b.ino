@@ -4,7 +4,7 @@
 #include <RFM22.h>
 #include <util/crc16.h>
 
-//Setup radio on SPI with NSEL on pin 9
+//Setup radio on SPI with NSEL on pin 6
 rfm22 radio1(6);
 
 //Variables
@@ -490,11 +490,11 @@ void loop() {
       {
         gps_get_time();
 
-        //This is the daytime loop, operates between 0700 and 1700
+        //This is the daytime loop, operates between 0700 and 1900
         // 2 situations will break out of this loop - either outside the time
         // or that we've lost gps lock (though we give it 10 loops in an attempt
         // to regain lock)
-        while(hour > 6 && hour < 18) {
+        while(hour > 6 && hour < 20) {
           gps_check_lock();
           if (lock == 0x03 || lock == 0x04) {
             lockcount = 0;
