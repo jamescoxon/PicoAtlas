@@ -538,6 +538,9 @@ void loop() {
   
   radio1.write(0x07, 0x08); // turn tx on
   delay(500);
+  if(gpsstatus == 1){
+    delay(500);
+  }
   radio1.write(0x07, 0x01); // turn tx off
   delay(10000);
   
@@ -578,9 +581,9 @@ void loop() {
             radio1.write(0x07, 0x08); // turn tx on`
             rtty_txstring(superbuffer);
             delay(1000);
-            oldLat = lat;
-            old_total_time = total_time;
           }
+          oldLat = lat;
+          old_total_time = total_time;
           
           if (count % 50 == 0){
             PSMgps(); //re do power saving setup, currently only sets to Eco as low power modes are unstable
