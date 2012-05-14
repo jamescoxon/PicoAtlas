@@ -36,7 +36,7 @@ rfm22 radio1(6);
 int32_t lat = 0, lon = 0, alt = 0;
 uint8_t hour = 0, minute = 0, second = 0, lock = 0, sats = 0;
 unsigned long startGPS = 0;
-int GPSerror = 0, count = 0, n, gpsstatus, lockcount = 0, battV = 0, intTemp = 0;
+int GPSerror = 0, count = 0, n, gpsstatus, lockcount = 0, battV = 0, intTemp = 0, oldLat = 0, total_time = -1, old_total_time = -2;
 
 uint8_t buf[60]; //GPS receive buffer
 char superbuffer [80]; //Telem string buffer
@@ -227,14 +227,14 @@ void setupRadio(){
   
   radio1.write(0x71, 0x00); // unmodulated carrier
  
-  
   //This sets up the GPIOs to automatically switch the antenna depending on Tx or Rx state, only needs to be done at start up
   radio1.write(0x0b,0x12);
   radio1.write(0x0c,0x15);
   
   radio1.setFrequency(434.201);
   
-  radio1.write(0x6D, 0x04);// turn tx low power 8db
+  //radio1.write(0x6D, 0x03);// turn tx low power 8db
+  radio1.write(0x6D, 0x04);// turn tx low power 11db
   
   radio1.write(0x07, 0x08); // turn tx on
   delay(1000);
@@ -286,7 +286,8 @@ void PSMgps(){
 }
 
 void gpsPower(int i){
-  if(i==0){
+  if(i == 0){
+    //turn off GPS
     //  uint8_t GPSoff[] = {0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x4D, 0x3B};
     uint8_t GPSoff[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x16, 0x74};
     sendUBX(GPSoff, sizeof(GPSoff)/sizeof(uint8_t));
@@ -294,7 +295,7 @@ void gpsPower(int i){
   }
   else if (i == 1){
     //turn on GPS
-   // uint8_t GPSon[] = {0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x4C, 0x37};
+    // uint8_t GPSon[] = {0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x4C, 0x37};
     uint8_t GPSon[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x09, 0x00, 0x17, 0x76};
     sendUBX(GPSon, sizeof(GPSon)/sizeof(uint8_t));
     gpsstatus = 1;
@@ -473,6 +474,7 @@ void gps_get_time()
         hour = buf[22];
         minute = buf[23];
         second = buf[24];
+        total_time = hour + minute + second;
       }
     }
 }
@@ -483,7 +485,7 @@ void prepData() {
   count++;
   battV = analogRead(2);
   intTemp = getTemp();
-  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV, intTemp);
+  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV, intTemp);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
 }
 
@@ -513,7 +515,9 @@ int getTemp(void)
   wADC = ADCW;
 
   // The offset of 324.31 could be wrong. It is just an indication.
-  t = (wADC - 324.31 ) / 1.22;
+  // Removed floats, who knows whether it'll be accurate - i guess we are looking for 
+  // changes
+  t = wADC - 324 ;
 
   // The returned temperature is in degrees Celcius.
   return (t);
@@ -565,13 +569,22 @@ void loop() {
             }
           }
           
-          radio1.write(0x07, 0x08); // turn tx on`
           prepData();
-          rtty_txstring(superbuffer);
+          //Occasionally the GPS doesn't properly respond with useful data, we need to try and filter
+          // this out - here we look for a change in latitude (which should occur even at rest due to 
+          // GPS drift and also we'll look for a change in time (total_time = hour+mins+secs to create
+          // a relatively unique number).
+          if (lat != oldLat && total_time != old_total_time ) {
+            radio1.write(0x07, 0x08); // turn tx on`
+            rtty_txstring(superbuffer);
+            delay(1000);
+            oldLat = lat;
+            old_total_time = total_time;
+          }
+          
           if (count % 50 == 0){
             PSMgps(); //re do power saving setup, currently only sets to Eco as low power modes are unstable
           }
-          delay(1000);
         } //End of the daytime loop
         
         //This is the night time and default setup
