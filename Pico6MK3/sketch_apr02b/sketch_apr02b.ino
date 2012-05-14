@@ -4,7 +4,8 @@
 * Designed to be ultra lightweight, current hardware weighs 33g including batteries
 * and can be lifted with a single 92cm foil balloon. Designed to explore long duration
 * floats involving a degree of super-pressure.
-* Transmits RTTY during the day and Slow-Hell at night.
+* Transmits RTTY during the day and Slow-Hell at night. See http://ukhas.org.uk/projects:picoatlas
+* for more info.
 *
 * Latest code can be found: https://github.com/jamescoxon/PicoAtlas
 *
