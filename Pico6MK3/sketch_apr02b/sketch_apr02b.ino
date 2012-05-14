@@ -1,4 +1,14 @@
-/* GPS Code from jonsowman and Joey flight computer CUSF
+/*
+* PicoAtlas - James Coxon jacoxon@googlemail.com
+* Experiemental pico payload based upon Arduino Mini Pro, RF22b and a Ublox GPS
+* Designed to be ultra lightweight, current hardware weighs 33g including batteries
+* and can be lifted with a single 92cm foil balloon. Designed to explore long duration
+* floats involving a degree of super-pressure.
+* Transmits RTTY during the day and Slow-Hell at night.
+*
+* Latest code can be found: https://github.com/jamescoxon/PicoAtlas
+*
+* GPS Code from jonsowman and Joey flight computer CUSF
 * https://github.com/cuspaceflight/joey-m/tree/master/firmware
 
     This program is free software: you can redistribute it and/or modify
