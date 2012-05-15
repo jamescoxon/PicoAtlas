@@ -217,7 +217,7 @@ void sendUBX(uint8_t *MSG, uint8_t len) {
 
 void setupRadio(){
   
-  digitalWrite(7, LOW);
+  digitalWrite(7, LOW); // Turn on Radio
   
   delay(1000);
   
@@ -493,7 +493,6 @@ void prepData() {
 int getTemp(void)
 {
   unsigned int wADC;
-  int t;
 
   // The internal temperature has to be used
   // with the internal reference of 1.1V.
@@ -514,13 +513,8 @@ int getTemp(void)
   // Reading register "ADCW" takes care of how to read ADCL and ADCH.
   wADC = ADCW;
 
-  // The offset of 324.31 could be wrong. It is just an indication.
-  // Removed floats, who knows whether it'll be accurate - i guess we are looking for 
-  // changes
-  t = wADC - 324 ;
-
-  // The returned temperature is in degrees Celcius.
-  return (t);
+  // The returned temperature is raw.
+  return (wADC);
 }
 
 void setup() {
@@ -539,6 +533,9 @@ void loop() {
   radio1.write(0x07, 0x08); // turn tx on
   delay(500);
   if(gpsstatus == 1){
+    radio1.write(0x07, 0x01); // turn tx off
+    delay(250);
+    radio1.write(0x07, 0x08); // turn tx on
     delay(500);
   }
   radio1.write(0x07, 0x01); // turn tx off
