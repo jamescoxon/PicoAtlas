@@ -263,18 +263,11 @@ uint16_t gps_CRC16_checksum (char *string)
 
 void setupGPS() {
   //Turning off all GPS NMEA strings apart on the uBlox module
-  Serial.println("$PUBX,40,GLL,0,0,0,0*5C");
-  delay(1000);
-  Serial.println("$PUBX,40,GGA,0,0,0,0*5A");
-  delay(1000);
-  Serial.println("$PUBX,40,GSA,0,0,0,0*4E");
-  delay(1000);
-  Serial.println("$PUBX,40,RMC,0,0,0,0*47");
-  delay(1000);
-  Serial.println("$PUBX,40,GSV,0,0,0,0*59");
-  delay(1000);
-  Serial.println("$PUBX,40,VTG,0,0,0,0*5E");
-  delay(3000); // Wait for the GPS to process all the previous commands
+  // Taken from Project Swift (rather than the old way of sending ascii text)
+  uint8_t setNMEAoff[] = {0xB5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xD0, 0x08, 0x00, 0x00, 0x80, 0x25, 0x00, 0x00, 0x07, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA0, 0xA9};
+  sendUBX(setNMEAoff, sizeof(setNMEAoff)/sizeof(uint8_t));
+  
+  delay(500);
   
 }
 
@@ -346,7 +339,7 @@ void gps_get_data()
       buf[i] = Serial.read();
       i++;
     }
-    // Timeout if no valid response in 3 seconds
+    // Timeout if no valid response in 1 seconds
     if (millis() - startTime > 1000) {
       break;
     }
@@ -556,7 +549,7 @@ void loop() {
         // 2 situations will break out of this loop - either outside the time
         // or that we've lost gps lock (though we give it 10 loops in an attempt
         // to regain lock)
-        while(hour > 6 && hour < 20) {
+        while(hour > 6 && hour < 22) {
           gps_check_lock();
           if (lock == 0x03 || lock == 0x04) {
             lockcount = 0;
