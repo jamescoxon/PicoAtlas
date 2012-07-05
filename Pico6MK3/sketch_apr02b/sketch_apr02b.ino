@@ -549,7 +549,7 @@ void loop() {
         // 2 situations will break out of this loop - either outside the time
         // or that we've lost gps lock (though we give it 10 loops in an attempt
         // to regain lock)
-        while(hour > 6 && hour < 23) {
+        while(hour > 5 && hour < 23) {
           gps_check_lock();
           if (lock == 0x03 || lock == 0x04) {
             lockcount = 0;
