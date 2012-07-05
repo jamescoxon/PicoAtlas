@@ -581,8 +581,9 @@ void loop() {
         } //End of the daytime loop
         
         //This is the night time and default setup
-        gpsPower(0); //turn GPS off
         prepData();
+        gpsPower(0); //turn GPS off
+        
         radio1.write(0x07, 0x08); // turn tx on
         hellsendmsg(superbuffer);
         startGPS = millis();
