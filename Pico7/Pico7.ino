@@ -468,6 +468,7 @@ void loop() {
         gpsPower(0); //turn GPS off
         
         radio1.write(0x07, 0x08); // turn tx on
+        delay(2000);
         rtty_txstring(superbuffer);
         rtty_txstring(superbuffer);
         rtty_txstring(superbuffer);
