@@ -29,8 +29,8 @@
 #include <RFM22.h>
 #include <util/crc16.h>
 
-//Setup radio on SPI with NSEL on pin 6
-rfm22 radio1(6);
+//Setup radio on SPI with NSEL on pin 10
+rfm22 radio1(10);
 
 //Variables
 int32_t lat = 0, lon = 0, alt = 0;
@@ -100,11 +100,11 @@ void rtty_txbit (int bit)
 
 void setupRadio(){
   
-  digitalWrite(7, LOW); // Turn on Radio
+  digitalWrite(A3, LOW); // Turn on Radio
   
   delay(1000);
   
-  rfm22::initSPI();
+  radio1.initSPI();
 
   radio1.init();
   
@@ -116,15 +116,20 @@ void setupRadio(){
   
   radio1.setFrequency(434.201);
   
-  //radio1.write(0x6D, 0x03);// turn tx low power 8db
   radio1.write(0x6D, 0x04);// turn tx low power 11db
   
   radio1.write(0x07, 0x08); // turn tx on
-  delay(1000);
-  radio1.write(0x07, 0x01); // turn tx off
   
 }
 //************Other Functions*****************
+
+// Send a byte array of UBX protocol to the GPS
+void sendUBX(uint8_t *MSG, uint8_t len) {
+  for(int i=0; i<len; i++) {
+    Serial.write(MSG[i]);
+  }
+  //Serial.println();
+}
 
 uint16_t gps_CRC16_checksum (char *string)
 {
@@ -360,43 +365,37 @@ void prepData() {
   gps_get_time();
   count++;
   battV = analogRead(2);
-  intTemp = getTemp();
+  intTemp = temperatureRead( 0x00,0 ) / 2;  //from RFM22
+  intTemp = intTemp - 64;
   n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV, intTemp);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
 }
 
-//From http://arduino.cc/playground/Main/InternalTemperatureSensor
-int getTemp(void)
+//Taken from RFM22 library + navrac
+uint8_t adcRead(uint8_t adcsel)
 {
-  unsigned int wADC;
+    uint8_t configuration = adcsel;
+    radio1.write(0x0f, configuration | 0x80);
+    radio1.write(0x10, 0x00);
 
-  // The internal temperature has to be used
-  // with the internal reference of 1.1V.
-  // Channel 8 can not be selected with
-  // the analogRead function yet.
+    // Conversion time is nominally 305usec
+    // Wait for the DONE bit
+    while (!(radio1.read(0x0f) & 0x80))
+	;
+    // Return the value  
+    return radio1.read(0x11);
+}
 
-  // Set the internal reference and mux.
-  ADMUX = (_BV(REFS1) | _BV(REFS0) | _BV(MUX3));
-  ADCSRA |= _BV(ADEN);  // enable the ADC
-
-  delay(20);            // wait for voltages to become stable.
-
-  ADCSRA |= _BV(ADSC);  // Start the ADC
-
-  // Detect end-of-conversion
-  while (bit_is_set(ADCSRA,ADSC));
-
-  // Reading register "ADCW" takes care of how to read ADCL and ADCH.
-  wADC = ADCW;
-
-  // The returned temperature is raw.
-  return (wADC);
+uint8_t temperatureRead(uint8_t tsrange, uint8_t tvoffs)
+{
+    radio1.write(0x12, tsrange | 0x20);
+    radio1.write(0x13, tvoffs);
+    return adcRead(0x00 | 0x00); 
 }
 
 void setup() {
-  pinMode(7, OUTPUT);
-  pinMode(6, OUTPUT);
-  digitalWrite(7, HIGH);
+  pinMode(A3, OUTPUT);
+  digitalWrite(A3, HIGH);
   Serial.begin(9600);
   delay(500);
   gpsPower(0);
