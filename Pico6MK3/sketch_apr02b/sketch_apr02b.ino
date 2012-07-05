@@ -87,12 +87,12 @@ void rtty_txbit (int bit)
 		if (bit)
 		{
 		  // high
-                  radio1.setFrequency(434.2015);
+                  radio1.write(0x073, 0x03);
 		}
 		else
 		{
 		  // low
-                  radio1.setFrequency(434.201);
+                  radio1.write(0x073, 0x00);
 		}
                 delayMicroseconds(19500); // 10000 = 100 BAUD 20150
 
@@ -549,7 +549,7 @@ void loop() {
         // 2 situations will break out of this loop - either outside the time
         // or that we've lost gps lock (though we give it 10 loops in an attempt
         // to regain lock)
-        while(hour > 6 && hour < 22) {
+        while(hour > 6 && hour < 23) {
           gps_check_lock();
           if (lock == 0x03 || lock == 0x04) {
             lockcount = 0;
