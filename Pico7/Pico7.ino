@@ -395,10 +395,10 @@ uint8_t temperatureRead(uint8_t tsrange, uint8_t tvoffs)
 
 void setup() {
   pinMode(A3, OUTPUT);
-  digitalWrite(A3, HIGH);
+  digitalWrite(A3, HIGH); //Turn radio off
   Serial.begin(9600);
   delay(500);
-  gpsPower(0);
+  gpsPower(0); // Turn GPS off
   setupRadio();
   startGPS = millis();
 }
@@ -414,7 +414,7 @@ void loop() {
     delay(500);
   }
   radio1.write(0x07, 0x01); // turn tx off
-  delay(10000);
+  delay(10000);  
   
   if(millis() - startGPS > 300000){
     if(gpsstatus == 0){
@@ -456,6 +456,10 @@ void loop() {
           }
           oldLat = lat;
           old_total_time = total_time;
+          
+          if (count % 10 == 0){
+            break;
+          }
           
           if (count % 50 == 0){
             PSMgps(); //re do power saving setup, currently only sets to Eco as low power modes are unstable
