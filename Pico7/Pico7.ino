@@ -4,7 +4,7 @@
 * Designed to be ultra lightweight, current hardware weighs 33g including batteries
 * and can be lifted with a single 92cm foil balloon. Designed to explore long duration
 * floats involving a degree of super-pressure.
-* Transmits RTTY during the day and Slow-Hell at night. See http://ukhas.org.uk/projects:picoatlas
+* Transmits RTTY, initially continous then switches to periodic. See http://ukhas.org.uk/projects:picoatlas
 * for more info.
 *
 * Latest code can be found: https://github.com/jamescoxon/PicoAtlas
@@ -36,7 +36,7 @@ rfm22 radio1(10);
 int32_t lat = 0, lon = 0, alt = 0;
 uint8_t hour = 0, minute = 0, second = 0, lock = 0, sats = 0;
 unsigned long startGPS = 0;
-int GPSerror = 0, count = 0, n, gpsstatus, lockcount = 0, battV = 0, intTemp = 0, oldLat = 0, total_time = -1, old_total_time = -2;
+int GPSerror = 0, count = 0, n, gpsstatus, lockcount = 0, battV = 0, intTemp = 0, oldLat = 0, total_time = -1, old_total_time = -2, solarV = 0;
 
 uint8_t buf[60]; //GPS receive buffer
 char superbuffer [80]; //Telem string buffer
@@ -364,10 +364,11 @@ void prepData() {
   gps_get_position();
   gps_get_time();
   count++;
-  battV = analogRead(2);
+  battV = analogRead(0);
+  solarV = analogRead(1);
   intTemp = temperatureRead( 0x00,0 ) / 2;  //from RFM22
   intTemp = intTemp - 64;
-  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV, intTemp);
+  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV, solarV, intTemp);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
 }
 
@@ -457,13 +458,17 @@ void loop() {
           oldLat = lat;
           old_total_time = total_time;
           
-          if (count % 10 == 0){
-            break;
-          }
-          
           if (count % 50 == 0){
             PSMgps(); //re do power saving setup, currently only sets to Eco as low power modes are unstable
           }
+          
+          //First 1000 strings we do continously then we switch to spaced data
+          if (count > 1000){
+            if (count % 10 == 0){
+              break;
+            }
+          }
+
         } //End of the daytime loop
         
         //This is the night time and default setup
