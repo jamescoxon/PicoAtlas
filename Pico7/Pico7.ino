@@ -172,15 +172,15 @@ void PSMgps(){
 void gpsPower(int i){
   if(i == 0){
     //turn off GPS
-      uint8_t GPSoff[] = {0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x4D, 0x3B};
-    //uint8_t GPSoff[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x16, 0x74};
+    //  uint8_t GPSoff[] = {0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x4D, 0x3B};
+    uint8_t GPSoff[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x16, 0x74};
     sendUBX(GPSoff, sizeof(GPSoff)/sizeof(uint8_t));
     gpsstatus = 0;
   }
   else if (i == 1){
     //turn on GPS
-     uint8_t GPSon[] = {0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x4C, 0x37};
-    //uint8_t GPSon[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x09, 0x00, 0x17, 0x76};
+     //uint8_t GPSon[] = {0xB5, 0x62, 0x02, 0x41, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x4C, 0x37};
+    uint8_t GPSon[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x09, 0x00, 0x17, 0x76};
     sendUBX(GPSon, sizeof(GPSon)/sizeof(uint8_t));
     gpsstatus = 1;
     delay(1000);
@@ -404,6 +404,10 @@ void setup() {
   delay(500);
   gpsPower(0); // Turn GPS off
   setupRadio();
+  radio1.write(0x07, 0x08); // turn tx on
+  delay(250);
+  radio1.write(0x07, 0x01); // turn tx off
+  delay(250);
   startGPS = millis();
 }
 
@@ -420,6 +424,14 @@ void loop() {
   radio1.write(0x07, 0x01); // turn tx off
   delay(10000);  
   
+  //If we still haven't got a lock after 5 minutes of searching power down the GPS and 
+  // restart the main loop;
+  if(millis() - startGPS > 600000){
+    gpsPower(0); //turn GPS off
+    startGPS = millis();
+  }
+  
+  //After 5 minutes of chirping start the GPS up and search for a lock
   if(millis() - startGPS > 300000){
     if(gpsstatus == 0){
       gpsPower(1); //turn GPS on
@@ -435,6 +447,8 @@ void loop() {
         // 2 situations will break out of this loop - either outside the time
         // or that we've lost gps lock (though we give it 10 loops in an attempt
         // to regain lock)
+        // EDIT: Third situation - after 1000 loops will break out to encourage power
+        // saving.
         while(hour > 5 && hour < 23) {
           gps_check_lock();
           if (lock == 0x03 || lock == 0x04) {
@@ -448,7 +462,7 @@ void loop() {
             }
           }
           
-          //PSMgps();
+          PSMgps();
           
           prepData();
           //Occasionally the GPS doesn't properly respond with useful data, we need to try and filter
@@ -463,9 +477,9 @@ void loop() {
           oldLat = lat;
           old_total_time = total_time;
           
-          if (count % 50 == 0){
-            PSMgps(); //re do power saving setup, currently only sets to Eco as low power modes are unstable
-          }
+          //if (count % 50 == 0){
+          //  PSMgps(); //re do power saving setup, currently only sets to Eco as low power modes are unstable
+          //}
           
           //First 1000 strings we do continously then we switch to spaced data
           if (count > 1000){
