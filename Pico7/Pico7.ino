@@ -24,7 +24,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+*/  
 #include <SPI.h>
 #include <RFM22.h>
 #include <util/crc16.h>
@@ -364,8 +364,10 @@ void gps_get_time()
 }
 
 void prepData() {
-  gps_get_position();
-  gps_get_time();
+  if(gpsstatus == 1){
+    gps_get_position();
+    gps_get_time();
+  }
   count++;
   battV = analogRead(0);
   solarV = analogRead(1);
@@ -434,6 +436,14 @@ void loop() {
   //After 5 minutes of chirping start the GPS up and search for a lock
   if(millis() - startGPS > 300000){
     if(gpsstatus == 0){
+      //Before we turn on the GPS (and potentially reboot due to too much current draw) transmit a single RTTY string
+      prepData();
+      radio1.write(0x07, 0x08); // turn tx on
+      delay(2000);
+      rtty_txstring(superbuffer);
+      radio1.write(0x07, 0x01); // turn tx off
+      //Turn radio off, sleep for 1 sec in preperation for GPS to be powered on
+      delay(1000);
       gpsPower(1); //turn GPS on
     }
     else {
