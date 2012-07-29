@@ -162,11 +162,11 @@ void setupGPS() {
 void PSMgps(){
    setupGPS();
    //set GPS to Eco mode (reduces current by 4mA)
-   //uint8_t setEco[] = {0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x00, 0x04, 0x1D, 0x85};
-   //sendUBX(setEco, sizeof(setEco)/sizeof(uint8_t));
+   uint8_t setEco[] = {0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x00, 0x04, 0x1D, 0x85};
+   sendUBX(setEco, sizeof(setEco)/sizeof(uint8_t));
    
-   uint8_t setPSM[] = { 0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x08, 0x01, 0x22, 0x92 }; // Setup for Power Save Mode (Default Cyclic 1s)
-   sendUBX(setPSM, sizeof(setPSM)/sizeof(uint8_t));
+   //uint8_t setPSM[] = { 0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x08, 0x01, 0x22, 0x92 }; // Setup for Power Save Mode (Default Cyclic 1s)
+   //sendUBX(setPSM, sizeof(setPSM)/sizeof(uint8_t));
 }
 
 void gpsPower(int i){
@@ -441,6 +441,8 @@ void loop() {
       radio1.write(0x07, 0x08); // turn tx on
       delay(2000);
       rtty_txstring(superbuffer);
+      delay(100);
+      rtty_txstring(superbuffer);
       radio1.write(0x07, 0x01); // turn tx off
       //Turn radio off, sleep for 1 sec in preperation for GPS to be powered on
       delay(1000);
@@ -472,7 +474,7 @@ void loop() {
             }
           }
           
-          PSMgps();
+          //PSMgps();
           
           prepData();
           //Occasionally the GPS doesn't properly respond with useful data, we need to try and filter
@@ -487,9 +489,9 @@ void loop() {
           oldLat = lat;
           old_total_time = total_time;
           
-          //if (count % 50 == 0){
-          //  PSMgps(); //re do power saving setup, currently only sets to Eco as low power modes are unstable
-          //}
+          if (count % 20 == 0){
+            PSMgps(); //re do power saving setup, currently only sets to Eco as low power modes are unstable
+          }
           
           //First 1000 strings we do continously then we switch to spaced data
           if (count > 1000){
