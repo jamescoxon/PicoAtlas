@@ -425,7 +425,7 @@ void loop() {
   }
   radio1.write(0x07, 0x01); // turn tx off
   delay(10000);  
-  
+    
   //If we still haven't got a lock after 5 minutes of searching power down the GPS and 
   // restart the main loop;
   if(millis() - startGPS > 600000){
@@ -435,8 +435,9 @@ void loop() {
   
   //After 5 minutes of chirping start the GPS up and search for a lock
   if(millis() - startGPS > 300000){
+    
     if(gpsstatus == 0){
-      //Before we turn on the GPS (and potentially reboot due to too much current draw) transmit a single RTTY string
+      //Before we turn on the GPS (and potentially reboot due to too much current draw) transmit 2 RTTY strings
       prepData();
       radio1.write(0x07, 0x08); // turn tx on
       delay(2000);
@@ -461,6 +462,8 @@ void loop() {
         // to regain lock)
         // EDIT: Third situation - after 1000 loops will break out to encourage power
         // saving.
+        battV = analogRead(0);
+        if(battV > 400){
         while(hour > 5 && hour < 23) {
           gps_check_lock();
           if (lock == 0x03 || lock == 0x04) {
@@ -473,8 +476,6 @@ void loop() {
               break;
             }
           }
-          
-          //PSMgps();
           
           prepData();
           //Occasionally the GPS doesn't properly respond with useful data, we need to try and filter
@@ -501,6 +502,7 @@ void loop() {
           }
 
         } //End of the daytime loop
+        }
         
         //This is the night time and default setup
         prepData();
