@@ -427,12 +427,6 @@ void loop() {
   
   radio1.write(0x07, 0x08); // turn tx on
   delay(500);
-  if(gpsstatus == 1){
-    radio1.write(0x07, 0x01); // turn tx off
-    delay(250);
-    radio1.write(0x07, 0x08); // turn tx on
-    delay(500);
-  }
   radio1.write(0x07, 0x01); // turn tx off
   delay(10000);  
     
@@ -444,7 +438,60 @@ void loop() {
   }
   
   //After 5 minutes of chirping start the GPS up and search for a lock
-  if(millis() - startGPS > 300000){
+  while(millis() - startGPS > 300000){
+    
+    //1)
+    //If we still haven't got a lock after 5 minutes of searching power down the GPS and 
+    // restart the main loop;
+    if(millis() - startGPS > 600000){
+      gpsPower(0); //turn GPS off
+      startGPS = millis();
+      break;
+    }
+    
+    //2)
+    //Transmit 2 strings of RTTY and then power on the GPS
+    if(gpsstatus == 0){
+      prepData();
+      radio1.write(0x07, 0x08); // turn tx on
+      delay(2000);
+      rtty_txstring(superbuffer);
+      delay(100);
+      rtty_txstring(superbuffer);
+      radio1.write(0x07, 0x01); // turn tx off
+      //Turn radio off, sleep for 1 sec in preperation for GPS to be powered on
+      delay(1000);
+      gpsPower(1); //turn GPS on
+    }
+    
+    //3)
+    //Check for lock, if we do have lock then check battery voltage to decide what to do about radio transmission
+    gps_check_lock();
+    if( lock == 0x03 || lock == 0x04 )
+      {
+        //Check battery voltage and solar voltage
+        prepData();
+        
+        if(battV > 400 && solarV > 600){
+          radio1.write(0x07, 0x08); // turn tx on`
+          rtty_txstring(superbuffer);
+          delay(1000);
+        }
+        else{
+          gpsPower(0);
+          delay(1000);
+          radio1.write(0x07, 0x08); // turn tx on`
+          delay(2000);
+          rtty_txstring(superbuffer);
+          delay(500);
+          rtty_txstring(superbuffer);
+          delay(500);
+          rtty_txstring(superbuffer);
+          startGPS = millis();
+          break;
+        }
+          
+      }
     
   }
     
