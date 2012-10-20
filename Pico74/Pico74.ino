@@ -36,7 +36,7 @@ rfm22 radio1(10);
 int32_t lat = 0, lon = 0, alt = 0;
 uint8_t hour = 0, minute = 0, second = 0, lock = 0, sats = 0;
 unsigned long startGPS = 0;
-int GPSerror = 0, count = 0, n, gpsstatus, lockcount = 0, battV = 0, intTemp = 0, oldLat = 0, total_time = -1, old_total_time = -2, solarV = 0, radiostatus = 0;
+int GPSerror = 0, count = 0, n, gpsstatus, lockcount = 0, intTemp = 0, oldLat = 0, total_time = -1, old_total_time = -2, radiostatus = 0, navmode = 9;
 
 uint8_t buf[60]; //GPS receive buffer
 char superbuffer [80]; //Telem string buffer
@@ -94,15 +94,15 @@ void rtty_txbit (int bit)
 		  // low
                   radio1.write(0x073, 0x00);
 		}
-                delayMicroseconds(19500); // 10000 = 100 BAUD 20150
+                delayMicroseconds(9750); // 10000 = 100 BAUD 20150
 
 }
 
 void setupRadio(){
   
-  digitalWrite(A3, LOW); // Turn on Radio
+  digitalWrite(3, LOW); // Turn on Radio
   
-  delay(1000);
+  delay(500);
   
   radio1.initSPI();
 
@@ -114,7 +114,7 @@ void setupRadio(){
   radio1.write(0x0b,0x12);
   radio1.write(0x0c,0x15);
   
-  radio1.setFrequency(434.201);
+  radio1.setFrequency(434.301);
   
   radio1.write(0x6D, 0x04);// turn tx low power 11db
   
@@ -167,6 +167,7 @@ struct t_htab helltab[] = {
   {'Y', { B00000100, B00001000, B01110000, B00001000, B00000100 } },
   {'Z', { B01000100, B01100100, B01010100, B01001100, B01100100 } },
   {'.', { B01000000, B01000000, B00000000, B00000000, B00000000 } },
+  {':', { B00000000, B00100100, B00100100, B00000000, B00000000 } },
   {',', { B10000000, B10100000, B01100000, B00000000, B00000000 } },
   {'/', { B01000000, B00100000, B00010000, B00001000, B00000100 } },
   {'*', { B00000000, B00000000, B00000100, B00001110, B00000100 } }
@@ -179,7 +180,7 @@ void helldelay()
 {
   //Slow
   delay(64);
-  delayMicroseconds(900);
+  delayMicroseconds(450);
 
 }
 
@@ -234,6 +235,42 @@ void hellsendmsg(char *str)
 }
 //************Other Functions*****************
 
+//Function to poll the NAV5 status of a Ublox GPS module (5/6)
+//Sends a UBX command (requires the function sendUBX()) and waits 3 seconds
+// for a reply from the module. It then isolates the byte which contains 
+// the information regarding the NAV5 mode,
+// 0 = Pedestrian mode (default, will not work above 12km)
+// 6 = Airborne 1G (works up to 50km altitude)
+//Adapted by jcoxon from getUBX_ACK() from the example code on UKHAS wiki
+// http://wiki.ukhas.org.uk/guides:falcom_fsa03
+boolean checkNAV(){
+  uint8_t b, bytePos = 0;
+  uint8_t getNAV5[] = { 0xB5, 0x62, 0x06, 0x24, 0x00, 0x00, 0x2A, 0x84 }; //Poll NAV5 status
+  
+  Serial.flush();
+  unsigned long startTime = millis();
+  sendUBX(getNAV5, sizeof(getNAV5)/sizeof(uint8_t));
+  
+  while (1) {
+    // Make sure data is available to read
+    if (Serial.available()) {
+      b = Serial.read();
+      
+      if(bytePos == 8){
+        navmode = b;
+        return true;
+      }
+                        
+      bytePos++;
+    }
+    // Timeout if no valid response in 3 seconds
+    if (millis() - startTime > 3000) {
+      navmode = 0;
+      return false;
+    }
+  }
+}
+
 // Send a byte array of UBX protocol to the GPS
 void sendUBX(uint8_t *MSG, uint8_t len) {
   for(int i=0; i<len; i++) {
@@ -265,6 +302,12 @@ void setupGPS() {
   // Taken from Project Swift (rather than the old way of sending ascii text)
   uint8_t setNMEAoff[] = {0xB5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xD0, 0x08, 0x00, 0x00, 0x80, 0x25, 0x00, 0x00, 0x07, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA0, 0xA9};
   sendUBX(setNMEAoff, sizeof(setNMEAoff)/sizeof(uint8_t));
+  
+  delay(500);
+  
+    // Check and set the navigation mode (Airborne, 1G)
+  uint8_t setNav[] = {0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF, 0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x05, 0x00, 0xFA, 0x00, 0xFA, 0x00, 0x64, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0xDC};
+  sendUBX(setNav, sizeof(setNav)/sizeof(uint8_t));
   
   delay(500);
   
@@ -476,15 +519,14 @@ void gps_get_time()
 
 void prepData() {
   if(gpsstatus == 1){
+    gps_check_lock();
     gps_get_position();
     gps_get_time();
   }
   count++;
-  battV = analogRead(0);
-  solarV = analogRead(1);
   intTemp = temperatureRead( 0x00,0 ) / 2;  //from RFM22
   intTemp = intTemp - 64;
-  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, battV, solarV, intTemp);
+  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, navmode, intTemp);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
 }
 
@@ -512,91 +554,57 @@ uint8_t temperatureRead(uint8_t tsrange, uint8_t tvoffs)
 
 void re_setup(){
     //Send commands to GPS
+    gpsPower(1);
     setupGPS();
     
     //Reboot Radio
-    digitalWrite(A3, HIGH);
+    digitalWrite(3, HIGH);
     radiostatus = 0;
     delay(1000);
     setupRadio();
 }
 
 void setup() {
-  pinMode(A3, OUTPUT);
-  digitalWrite(A3, HIGH); //Turn radio off
+  pinMode(3, OUTPUT);
+  //digitalWrite(A0, HIGH); //Turn radio off
   radiostatus = 0;
   Serial.begin(9600);
   delay(500);
-  gpsPower(0); // Turn GPS off
+  gpsPower(1); // Turn GPS on
   setupRadio();
   radio1.write(0x07, 0x08); // turn tx on
   delay(250);
   radio1.write(0x07, 0x01); // turn tx off
   delay(250);
-  startGPS = millis();
 }
 
 void loop() {
-
-  //Backup loop start  
-  radio1.write(0x07, 0x08); // turn tx on
-  delay(500);
-  if(gpsstatus == 1){
+  
+  if(count % 100 == 0){
+    re_setup();
+  }
+  
+  if((count % 10) == 0){
+    checkNAV();
+  }
+  
+  prepData();
+  
+  if(hour > 1 && hour < 6){
+    gpsPower(0);
+    radio1.write(0x07, 0x08); // turn tx on
+    hellsendmsg(superbuffer);
+    digitalWrite(3, HIGH); // Turn Radio off
+    radiostatus = 0;
+    
+    delay(240000);
+    gpsPower(1);
+    delay(60000);
+    setupRadio();
+  }
+  else {
+    rtty_txstring(superbuffer);
     delay(500);
   }
-  radio1.write(0x07, 0x01); // turn tx off
-  delay(500);
-  digitalWrite(A3, HIGH); //Turn off Radio
-  radiostatus = 0; 
  
-   //Backup loop complete 
-  
-  //After 5 minutes of chirping start the GPS up and search for a lock
-  if(millis() - startGPS > 300000){
-    gpsPower(1); //turn GPS off
-  }
-  
-  delay(10000);
-  
-  if(gpsstatus == 1){
-    //Check for lock
-    gps_check_lock();
-    if( lock == 0x03 || lock == 0x04 )
-      {
-        gps_get_time();
-
-        //This is the daytime loop, operates between 0600 and 2300
-        // 2 situations will break out of this loop - either outside the time
-        // or that we've lost gps lock (though we give it 10 loops in an attempt
-        // to regain lock)
-        while(hour > 5 && hour < 23) {
-          gps_check_lock();
-          if (lock == 0x03 || lock == 0x04) {
-            lockcount = 0;
-          }
-          else {
-            lockcount++;
-            if (lockcount > 10){
-              lockcount = 0; 
-              break;
-            }
-          }
-          
-          prepData();
-          
-          if (count % 50 == 0){
-            PSMgps(); //re do power saving setup, currently only sets to Eco as low power modes are unstable
-          }
-        } //End of the daytime loop
-        
-        //This is the night time and default setup
-        prepData();
-        gpsPower(0); //turn GPS off
-        
-        radio1.write(0x07, 0x08); // turn tx on
-        hellsendmsg(superbuffer);
-        startGPS = millis();
-        radio1.write(0x07, 0x01); // turn tx off
-      }
-  }    
 }
