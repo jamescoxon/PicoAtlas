@@ -70,6 +70,25 @@ void rtty_txbit (int bit)
 
 }
 
+void Rx_mode(){
+  if (!rf22.init()){
+  Serial.println("RF22 init failed");
+  }
+  // Defaults after init are 434.0MHz, modulation GFSK_Rb2_4Fd36
+  rf22.setModemConfig(RF22::GFSK_Rb2Fd5);
+  rf22.setFrequency(434.000);
+  rf22.setModeRx();
+}
+
+void Tx_mode(){
+  rf22.reset();
+  rf22.setModeTx();
+  rf22.spiWrite(0x71, 0x00); // unmodulated carrier
+  rf22.setFrequency(434.100);
+  rf22.spiWrite(0x6D, 0x04);// turn tx low power 11db
+  rf22.spiWrite(0x07, 0x08); // turn tx on
+}
+
 void setup() 
 {
   Serial.begin(9600);
@@ -84,54 +103,63 @@ void loop()
 {
   while (1)
   {
-    rf22.waitAvailable();
     
-    // Should be a message for us now   
-    uint8_t buf[RF22_MAX_MESSAGE_LEN];
-    uint8_t len = sizeof(buf);
-    if (rf22.recv(buf, &len))
-    {
+    // Wait for data over the radio, will time out after (1000*60*5)
+    if(rf22.waitAvailableTimeout(300000)){
       
-      //Collect Data
-      rx_count++; //count number of strings rx'd
-      lastRSSI = rf22.lastRssi();
-      currentRSSI = rf22.rssiRead();
-      
-      Serial.print(rx_count);
-      Serial.print(",");
-      Serial.print(lastRSSI);
-      Serial.print(",");
-      Serial.print(currentRSSI);
-      Serial.print(", rx: ");
-      Serial.println((char*)buf);
-      
-
-      
-      //Prepare to transmit data as RTTY
-      rf22.reset();
-      rf22.setModeTx();
-      rf22.spiWrite(0x71, 0x00); // unmodulated carrier
-      rf22.setFrequency(434.100);
-      rf22.spiWrite(0x6D, 0x04);// turn tx low power 11db
-      rf22.spiWrite(0x07, 0x08); // turn tx on
-      delay(5000);
-      for (int i=0; i <= 3; i++){
-        rtty_txstring("$$$$$");
-        rtty_txstring((char*)buf);
-        delay(1000);
+      // Should be a message for us now   
+      uint8_t buf[RF22_MAX_MESSAGE_LEN];
+      uint8_t len = sizeof(buf);
+      if (rf22.recv(buf, &len))
+      {
+        
+        //Collect Data
+        rx_count++; //count number of strings rx'd
+        lastRSSI = rf22.lastRssi();
+        currentRSSI = rf22.rssiRead();
+        
+        Serial.print(rx_count);
+        Serial.print(",");
+        Serial.print(lastRSSI);
+        Serial.print(",");
+        Serial.print(currentRSSI);
+        Serial.print(", rx: ");
+        Serial.println((char*)buf);
+        
+  
+        
+        //Prepare to transmit data as RTTY
+        Tx_mode();
+        delay(5000);
+        for (int i=0; i <= 3; i++){
+          rtty_txstring("$$$$$");
+          rtty_txstring((char*)buf);
+          delay(1000);
+        }
+        
+        //RTTY complete - now switch back to RFM22 GFSK Rx Mode
+        Rx_mode();
       }
-      
-      //RTTY complete - now switch back to RFM22 GFSK Rx Mode
-      if (!rf22.init())
-        Serial.println("RF22 init failed");
-      // Defaults after init are 434.0MHz, modulation GFSK_Rb2_4Fd36
-      rf22.setModemConfig(RF22::GFSK_Rb2Fd5);
-      rf22.setFrequency(434.000);
-      rf22.setModeRx();
+      else
+      {
+        Serial.println("recv failed");
+      }
     }
-    else
-    {
-      Serial.println("recv failed");
+    else{
+      //Transmit own GPS location
+      // 1) Turn on GPS module
+      
+      // 2) Get Lock
+      
+      // 3) Prep Data
+      Tx_mode();
+      
+      // 4) Transmit Data (?for loop of say 5 strings)
+      
+      // 5) Shutdown GPS
+      
+      // 6) Switch back to Rx mode
+      Rx_mode();
     }
   }
 }
