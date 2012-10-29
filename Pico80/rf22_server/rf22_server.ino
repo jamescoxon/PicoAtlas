@@ -10,6 +10,8 @@
 // Singleton instance of the radio
 RF22 rf22;
 
+int rx_count, lastRSSI, currentRSSI;
+
 // RTTY Functions - from RJHARRISON's AVR Code
 void rtty_txstring (char * string)
 {
@@ -89,12 +91,21 @@ void loop()
     uint8_t len = sizeof(buf);
     if (rf22.recv(buf, &len))
     {
-      Serial.print(rf22.lastRssi());
+      
+      //Collect Data
+      rx_count++; //count number of strings rx'd
+      lastRSSI = rf22.lastRssi();
+      currentRSSI = rf22.rssiRead();
+      
+      Serial.print(rx_count);
       Serial.print(",");
-      delay(100);
-      Serial.print(rf22. rssiRead());
-      Serial.print(", got request: ");
+      Serial.print(lastRSSI);
+      Serial.print(",");
+      Serial.print(currentRSSI);
+      Serial.print(", rx: ");
       Serial.println((char*)buf);
+      
+
       
       //Prepare to transmit data as RTTY
       rf22.reset();
