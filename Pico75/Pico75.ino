@@ -26,26 +26,20 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */  
 #include <SPI.h>
-#include <RF22.h>
+#include <RFM22.h>
 #include <util/crc16.h>
 
 //Setup radio on SPI with NSEL on pin 10
-RF22 rf22(8,0);
-
-RF22::ModemConfig GMSK_250bd=  { 0x3d, 0x03, 0xd0, 0xe0, 0x10, 0x62,0x00, 0x06, 0x40, 0x0a, 0x1d, 0x80, 0x70, 0x02, 0x0c, 0x2c, 0x2b, 0x01 };
-
-
+rfm22 radio1(10);
 
 //Variables
 int32_t lat = 0, lon = 0, alt = 0;
 uint8_t hour = 0, minute = 0, second = 0, lock = 0, sats = 0;
 unsigned long startGPS = 0;
-int GPSerror = 0, count = 0, n, gpsstatus, lockcount = 0, intTemp = 0, oldLat = 0, total_time = -1, old_total_time = -2, radiostatus = 0, navmode = 9;
+int GPSerror = 0, count = 1, n, gpsstatus, lockcount = 0, intTemp = 0, oldLat = 0, total_time = -1, old_total_time = -2, radiostatus = 0, navmode = 9, volts = 0, Vcc = 0;
 
-int radioPower = A0;
 uint8_t buf[60]; //GPS receive buffer
 char superbuffer [80]; //Telem string buffer
-byte data [80];
 
 // RTTY Functions - from RJHARRISON's AVR Code
 void rtty_txstring (char * string)
@@ -93,147 +87,43 @@ void rtty_txbit (int bit)
 		if (bit)
 		{
 		  // high
-                  rf22.spiWrite(0x073, 0x03);
+                  radio1.write(0x073, 0x03);
 		}
 		else
 		{
 		  // low
-                  rf22.spiWrite(0x073, 0x00);
+                  radio1.write(0x073, 0x00);
 		}
-                //delayMicroseconds(9750); // 10000 = 100 BAUD 20150
-                delayMicroseconds(19500); // 10000 = 100 BAUD 20150
+                delayMicroseconds(9750); // 10000 = 100 BAUD 20150
 
 }
 
 void setupRadio(){
   
-  digitalWrite(radioPower, LOW); // Turn on Radio
+  digitalWrite(3, LOW); // Turn on Radio
   
   delay(500);
   
-  rf22.init();
+  radio1.initSPI();
+
+  radio1.init();
   
-  rf22.spiWrite(0x71, 0x00); // unmodulated carrier
+  radio1.write(0x71, 0x00); // unmodulated carrier
+ 
+  //This sets up the GPIOs to automatically switch the antenna depending on Tx or Rx state, only needs to be done at start up
+  radio1.write(0x0b,0x12);
+  radio1.write(0x0c,0x15);
   
-  rf22.setFrequency(434.000);
+  radio1.setFrequency(434.4  01);
   
-  rf22.spiWrite(0x6D, 0x04);// turn tx low power 11db
+  radio1.write(0x6D, 0x04);// turn tx low power 11db
   
-  rf22.spiWrite(0x07, 0x08); // turn tx on
+  radio1.write(0x07, 0x08); // turn tx on
   
   radiostatus = 1;
   
 }
 
-//***************Hellschreiber******************
-
-struct t_htab { char c; int hellpat[5]; } ;
-
-struct t_htab helltab[] = {
-
-  {'1', { B00000100, B00000100, B01111100, B00000000, B00000000 } },
-  {'2', { B01001000, B01100100, B01010100, B01001100, B01000000 } },
-  {'3', { B01000100, B01000100, B01010100, B01010100, B00111100 } },
-  {'4', { B00011100, B00010000, B00010000, B01111100, B00010000 } },
-  {'5', { B01000000, B01011100, B01010100, B01010100, B00110100 } },
-  {'6', { B00111100, B01010010, B01001010, B01001000, B00110000 } },
-  {'7', { B01000100, B00100100, B00010100, B00001100, B00000100 } },
-  {'8', { B00111100, B01001010, B01001010, B01001010, B00111100 } },
-  {'9', { B00001100, B01001010, B01001010, B00101010, B00111100 } },
-  {'0', { B00111000, B01100100, B01010100, B01001100, B00111000 } },
-  {'A', { B01111000, B00101100, B00100100, B00101100, B01111000 } },
-  {'B', { B01000100, B01111100, B01010100, B01010100, B00101000 } },
-  {'C', { B00111000, B01101100, B01000100, B01000100, B00101000 } },
-  {'D', { B01000100, B01111100, B01000100, B01000100, B00111000 } },
-  {'E', { B01111100, B01010100, B01010100, B01000100, B01000100 } },
-  {'F', { B01111100, B00010100, B00010100, B00000100, B00000100 } },
-  {'G', { B00111000, B01101100, B01000100, B01010100, B00110100 } },
-  {'H', { B01111100, B00010000, B00010000, B00010000, B01111100 } },
-  {'I', { B00000000, B01000100, B01111100, B01000100, B00000000 } },
-  {'J', { B01100000, B01000000, B01000000, B01000000, B01111100 } },
-  {'K', { B01111100, B00010000, B00111000, B00101000, B01000100 } },
-  {'L', { B01111100, B01000000, B01000000, B01000000, B01000000 } },
-  {'M', { B01111100, B00001000, B00010000, B00001000, B01111100 } },
-  {'N', { B01111100, B00000100, B00001000, B00010000, B01111100 } },
-  {'O', { B00111000, B01000100, B01000100, B01000100, B00111000 } },
-  {'P', { B01000100, B01111100, B01010100, B00010100, B00011000 } },
-  {'Q', { B00111000, B01000100, B01100100, B11000100, B10111000 } },
-  {'R', { B01111100, B00010100, B00010100, B00110100, B01011000 } },
-  {'S', { B01011000, B01010100, B01010100, B01010100, B00100100 } },
-  {'T', { B00000100, B00000100, B01111100, B00000100, B00000100 } },
-  {'U', { B01111100, B01000000, B01000000, B01000000, B01111100 } },
-  {'V', { B01111100, B00100000, B00010000, B00001000, B00000100 } },
-  {'W', { B01111100, B01100000, B01111100, B01000000, B01111100 } },
-  {'X', { B01000100, B00101000, B00010000, B00101000, B01000100 } },
-  {'Y', { B00000100, B00001000, B01110000, B00001000, B00000100 } },
-  {'Z', { B01000100, B01100100, B01010100, B01001100, B01100100 } },
-  {'.', { B01000000, B01000000, B00000000, B00000000, B00000000 } },
-  {':', { B00000000, B00100100, B00100100, B00000000, B00000000 } },
-  {',', { B10000000, B10100000, B01100000, B00000000, B00000000 } },
-  {'/', { B01000000, B00100000, B00010000, B00001000, B00000100 } },
-  {'*', { B00000000, B00000000, B00000100, B00001110, B00000100 } }
-
-};
-
-#define N_HELL  (sizeof(helltab)/sizeof(helltab[0]))
-
-void helldelay()
-{
-  //Slow
-  delay(64);
-  delayMicroseconds(450);
-
-}
-
-void on()
-{
-  rf22.spiWrite(0x07, 0x08); //on
-  helldelay();
-  rf22.spiWrite(0x07, 0x01); //off
-}
-
-void hellsend(char c)
-{
-  int i, j, q ;
-  if (c == ' ') {
-      for (int d=0; d<14; d++){
-        helldelay();  
-      }
-    return ;
-  }
-  for (i=0; i<N_HELL; i++) {
-    if (helltab[i].c == c) {
-      //Serial.print(helltab[i].c) ;
-      
-      for (j=0; j<=4; j++) 
-      {
-        byte mask = B10000000;
-        for (q=0; q<=6; q++)
-        {      
-          if(helltab[i].hellpat[j] & mask) {
-            on();
-          } else {
-            helldelay();
-          }
-          mask >>= 1;
-        }
-      }
-      for (int d=0; d<14; d++){
-        helldelay();  
-      }
-      return ;
-    }
-  }
-  /* if we drop off the end, then we send a space */
-  //Serial.print("?") ;
-}
-
-void hellsendmsg(char *str)
-{
-  while (*str)
-    hellsend(*str++) ;
-  //Serial.println("");
-}
 //************Other Functions*****************
 
 //Function to poll the NAV5 status of a Ublox GPS module (5/6)
@@ -518,6 +408,21 @@ void gps_get_time()
     }
 }
 
+// Try reading the bandgap reference voltage to measure current VCC voltage.
+// 2012-04-22 <jc@wippler.nl> http://opensource.org/licenses/mit-license.php
+// http://jeelabs.org/2012/05/04/measuring-vcc-via-the-bandgap/
+
+static int vccRead (byte us =250) {
+  analogRead(6);    // set up "almost" the proper ADC readout
+  bitSet(ADMUX, 3); // then fix it to switch to channel 14
+  delayMicroseconds(us); // delay substantially improves accuracy
+  bitSet(ADCSRA, ADSC);
+	while (bit_is_set(ADCSRA, ADSC))
+	  ;
+  word x = ADC;
+  return x ? (1100L * 1023) / x : -1;
+}
+
 void prepData() {
   if(gpsstatus == 1){
     gps_check_lock();
@@ -527,7 +432,9 @@ void prepData() {
   count++;
   intTemp = temperatureRead( 0x00,0 ) / 2;  //from RFM22
   intTemp = intTemp - 64;
-  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, navmode, intTemp);
+  volts = analogRead(0);
+  Vcc = vccRead();
+  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, navmode, intTemp, volts, Vcc);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
 }
 
@@ -535,93 +442,89 @@ void prepData() {
 uint8_t adcRead(uint8_t adcsel)
 {
     uint8_t configuration = adcsel;
-    rf22.spiWrite(0x0f, configuration | 0x80);
-    rf22.spiWrite(0x10, 0x00);
+    radio1.write(0x0f, configuration | 0x80);
+    radio1.write(0x10, 0x00);
 
     // Conversion time is nominally 305usec
     // Wait for the DONE bit
-    while (!(rf22.spiRead(0x0f) & 0x80))
+    while (!(radio1.read(0x0f) & 0x80))
 	;
     // Return the value  
-    return rf22.spiRead(0x11);
+    return radio1.read(0x11);
 }
 
 uint8_t temperatureRead(uint8_t tsrange, uint8_t tvoffs)
 {
-    rf22.spiWrite(0x12, tsrange | 0x20);
-    rf22.spiWrite(0x13, tvoffs);
+    radio1.write(0x12, tsrange | 0x20);
+    radio1.write(0x13, tvoffs);
     return adcRead(0x00 | 0x00); 
 }
 
 void re_setup(){
     //Send commands to GPS
     gpsPower(1);
-    setupGPS();
     
     //Reboot Radio
-    digitalWrite(radioPower, HIGH);
+    digitalWrite(3, HIGH);
     radiostatus = 0;
     delay(1000);
     setupRadio();
 }
 
-void setup() {
-  pinMode(radioPower, OUTPUT);
-  digitalWrite(A0, LOW); //Turn radio on
-  radiostatus = 0;
-  Serial.begin(9600);
-  delay(500);
-  gpsPower(1); // Turn GPS on
-  //setupRadio();
-  rf22.init();
-  rf22.spiWrite(0x07, 0x08); // turn tx on
-  delay(250);
-  rf22.spiWrite(0x07, 0x01); // turn tx off
-  delay(250);
-}
 
-void CharToByte(char* chars, byte* bytes, unsigned int count){
-    for(unsigned int i = 0; i < count; i++)
-    	bytes[i] = (byte)chars[i];
+
+void setup() {
+
+  //Turn off Radio
+  pinMode(3, OUTPUT);
+  digitalWrite(3, HIGH); //Turn radio off
+  radiostatus = 0;
+  
+  //Turn off GPS
+  Serial.begin(9600);
+  delay(5000);
+  gpsPower(0);
+  delay(5000);
+  
+
+  //Setup Radio
+  setupRadio();
 }
 
 void loop() {
+  
+  if(count == 10){
+    gpsPower(1);
+  }
   
   if(count % 100 == 0){
     re_setup();
   }
   
-  if((count % 10) == 0){
-    checkNAV();
+  if(gpsstatus == 1){
+    if((count % 5) == 0){
+      checkNAV();
+    }
   }
   
-  prepData();
-
-  rtty_txstring("$$$$$");
-  rtty_txstring(superbuffer);
-  delay(1000);
-
-  if(count % 5 == 0){
-    rf22.reset();
-    rf22.init();
-    rf22.spiWrite(0x6D, 0x04);// turn tx low power 11db
-    rf22.setModemRegisters(&GMSK_250bd);
-    delay(1000);
-    CharToByte(superbuffer, data, sizeof(superbuffer));
-    //uint8_t data[] = "Hello World!";
-    for (int i=0; i <= 10; i++){
-      rf22.send(data, sizeof(data));
-      rf22.waitPacketSent();
-      delay(1000);
+  if(count > 2000){
+    if(count % 10 == 0){
+      if(gpsstatus == 0){
+        gpsPower(1);
+       }
+      else{
+        gpsPower(0);
+      }
     }
     
-    rf22.reset();
-    rf22.spiWrite(0x71, 0x00); // unmodulated carrier
-    rf22.setFrequency(434.000);
-    rf22.spiWrite(0x6D, 0x04);// turn tx low power 11db
-    rf22.spiWrite(0x07, 0x08); // turn tx on
-    
-    delay(10000);
   }
- 
+
+  prepData();
+  
+  rtty_txstring(superbuffer);
+  delay(500);
+  
+  if(count > 2000){
+    delay(1500);
+  }
 }

@@ -8,7 +8,19 @@
 #include <RF22.h>
 
 // Singleton instance of the radio
-RF22 rf22;
+//RF22 rf22; //MiniPro
+//int radioPower = A0;
+
+//RF22 rf22(10,0); //uAVA
+//int radioPower = A3;
+
+RF22 rf22(8,0); //Badgeboard
+int radioPower = A0;
+
+
+RF22::ModemConfig GMSK_250bd=  { 0x3d, 0x03, 0xd0, 0xe0, 0x10, 0x62,0x00, 0x06, 0x40, 0x0a, 0x1d, 0x80, 0x70, 0x02, 0x0c, 0x2c, 0x2b, 0x01 };
+
+
 
 int rx_count, lastRSSI, currentRSSI;
 
@@ -75,8 +87,9 @@ void Rx_mode(){
   Serial.println("RF22 init failed");
   }
   // Defaults after init are 434.0MHz, modulation GFSK_Rb2_4Fd36
-  rf22.setModemConfig(RF22::GFSK_Rb2Fd5);
+  rf22.setModemRegisters(&GMSK_250bd);
   rf22.setFrequency(434.000);
+  rf22.spiWrite(0x02A, 0x08); // Set the AFC register to allow +- (0x08 * 625Hz) pull-in (~+-5KHz)
   rf22.setModeRx();
 }
 
@@ -89,14 +102,22 @@ void Tx_mode(){
   rf22.spiWrite(0x07, 0x08); // turn tx on
 }
 
+void Repeat_data(){
+  rf22.setModeTx();
+  rf22.setFrequency(434.100);
+  
+}
+
 void setup() 
 {
+  pinMode(radioPower, OUTPUT);
+  digitalWrite(radioPower, LOW); //Turn radio on
   Serial.begin(9600);
   Serial.println("Booting...");
   if (!rf22.init())
     Serial.println("RF22 init failed");
   // Defaults after init are 434.0MHz, modulation GFSK_Rb2_4Fd36
-  rf22.setModemConfig(RF22::GFSK_Rb2Fd5);
+  rf22.setModemRegisters(&GMSK_250bd);
 }
 
 void loop()
@@ -126,7 +147,13 @@ void loop()
         Serial.print(", rx: ");
         Serial.println((char*)buf);
         
-  
+        Repeat_data();
+        for (int i=0; i <= 5; i++){
+          rf22.send(buf, len);
+          rf22.waitPacketSent();
+          delay(1000);
+        }
+        
         
         //Prepare to transmit data as RTTY
         Tx_mode();
