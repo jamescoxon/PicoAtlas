@@ -70,7 +70,6 @@ static const uint8_t PROGMEM _sine_table[] = {
 #define POWERSAVING      // Comment out to turn Power Saving modes off
 
 #define RFM22B_PIN 10
-#define RFM22B_SDN A5
 #define STATUS_LED 7            // PAVA R7 Boards have an LED on PIN4
 #define GPS_ENABLE 5
 #define HX1_POWER  6
@@ -971,6 +970,7 @@ void gps_PSM(){
     if((lock == 0) || (sats < 5)){
       setGps_MaxPerformanceMode();
       wait(1000);
+      lock_count = 0;
     }
   }
 }
