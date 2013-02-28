@@ -156,8 +156,6 @@ void loop() {
   
   //If we've had a lock for 5 loops, still have more then 4 sats and power saving
   // is not turned on yet - turn it on
-  // gps_PSM is now a function to check for losing lock and therefore quickly 
-  // switching off powersaving
   if((lock_count > 5) && (sats > 4) && (psm_status == 0)){
     setGPS_PowerSaveMode();
   }
@@ -215,7 +213,7 @@ void re_setup(){
     gpsPower(1);
     
     //Reboot Radio
-    digitalWrite(RFM22B_SDN, HIGH);
+    digitalWrite(A5, HIGH);
     radiostatus = 0;
     wait(1000);
     setupRadio();
@@ -522,7 +520,7 @@ void send_APRS() {
   
   //Shutdown RFM22
   SPI.end();
-  digitalWrite(RFM22B_SDN, HIGH);
+  digitalWrite(A5, HIGH);
   wait(1000);
   
   ax25_init();
@@ -708,7 +706,7 @@ uint8_t* ckb)
 }
 
 void setupRadio(){ 
-  digitalWrite(RFM22B_SDN, LOW);
+  digitalWrite(A5, LOW);
   wait(1000);
   rfm22::initSPI();
   radio1.init();
