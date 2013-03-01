@@ -130,6 +130,12 @@ void loop() {
     re_setup();
     wait(2000);
   }
+  /*
+  if(count % 200 == 0){
+    gpsPower(2); //reset the GPS
+    wait(10000);
+  }
+  */
   //If GPS is ON every 5 strings check the nav mode
   if(gpsstatus == 1){
     if((count % 5) == 0){
@@ -199,7 +205,7 @@ void prepData() {
     gps_get_time();
   }
   count++;
-  n=sprintf (superbuffer, "$$ATLAS,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, navmode, psm_status, lock);
+  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, navmode, psm_status, lock);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
 }
 
