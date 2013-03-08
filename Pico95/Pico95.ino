@@ -99,6 +99,8 @@ uint8_t buf[60]; //GPS receive buffer
 char comment[3];
 char superbuffer [80]; //Telem string buffer
 unsigned long startTime;
+uint8_t Rxbuf[11];
+
 
 RF22 rf22(RFM22B_PIN);
 
@@ -205,23 +207,37 @@ void prepData() {
     gps_get_time();
   }
   count++;
-  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, navmode, psm_status, lock);
+  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d,%s", count, hour, minute, second, lat, lon, alt, sats, navmode, psm_status, lock, Rxbuf);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
 }
 
 void re_setup(){
-    //ensure HX1 is turned off
-    digitalWrite(HX1_POWER, LOW);
-    digitalWrite(HX1_ENABLE, LOW);
+      
+  //ensure HX1 is turned off
+  digitalWrite(HX1_POWER, LOW);
+  digitalWrite(HX1_ENABLE, LOW);
+  
+  //Send commands to GPS
+  gpsPower(1);
+  
+  //Listen for a bit
+  rf22.setModeRx();
+  if(rf22.waitAvailableTimeout(5000)){
     
-    //Send commands to GPS
-    gpsPower(1);
+    // Should be a message for us now   
+    uint8_t len = sizeof(Rxbuf);
+    if (rf22.recv(Rxbuf, &len))
+    {
+      
+    }
+  }
     
-    //Reboot Radio
-    digitalWrite(A5, HIGH);
-    radiostatus = 0;
-    wait(1000);
-    setupRadio();
+  
+  //Reboot Radio
+  digitalWrite(A5, HIGH);
+  radiostatus = 0;
+  wait(500);
+  setupRadio();
 }
 
 static int pointinpoly(const int32_t *poly, int points, int32_t x, int32_t y)
