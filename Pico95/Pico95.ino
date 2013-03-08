@@ -714,10 +714,10 @@ void setupRadio(){
   digitalWrite(A5, LOW);
   wait(1000);
   rf22.init();
+  rf22.setModeTx();
+  
   rf22.spiWrite(0x71, 0x00); // unmodulated carrier
-  //This sets up the GPIOs to automatically switch the antenna depending on Tx or Rx state, only needs to be done at start up
-  rf22.spiWrite(0x0b,0x12);
-  rf22.spiWrite(0x0c,0x15);
+
   rf22.setFrequency(434.351);
   rf22.spiWrite(0x6D, RADIO_POWER);
   rf22.spiWrite(0x07, 0x08); 
