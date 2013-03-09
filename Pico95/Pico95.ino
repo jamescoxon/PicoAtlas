@@ -104,6 +104,10 @@ uint8_t Rxbuf[11];
 
 RF22 rf22(RFM22B_PIN);
 
+//Config for low baud rate for RFM22b
+RF22::ModemConfig GMSK_250bd=  { 0x3d, 0x03, 0xd0, 0xe0, 0x10, 0x62,0x00, 0x06, 0x40, 0x0a, 0x1d, 0x80, 0x70, 0x02, 0x0c, 0x2c, 0x2b, 0x01 };
+
+
 void setup() {
   pinMode(STATUS_LED, OUTPUT);
   digitalWrite(STATUS_LED, HIGH);
@@ -120,17 +124,15 @@ void setup() {
   gpsPower(2); //reset the GPS
   wait(500);
   setupGPS();
-  wait(500);
   setupRadio();
   digitalWrite(STATUS_LED, LOW);
-  startTime = millis();
+  //startTime = millis();
 }
 
 void loop() {
   //Regularly reset everything in case of an error
   if(count % 20 == 0){
     re_setup();
-    wait(2000);
   }
   /*
   if(count % 200 == 0){
@@ -200,6 +202,13 @@ void loop() {
 
 //************Other Functions*****************
 
+void wait(unsigned long delaytime) // Arduino Delay doesn't get CPU Speeds below 8Mhz
+{
+  unsigned long _delaytime=millis();
+  while((_delaytime+delaytime)>=millis()){
+  }
+}
+
 void prepData() {
   if(gpsstatus == 1){
     //gps_check_lock();
@@ -211,6 +220,7 @@ void prepData() {
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
 }
 
+//************ Radio *****************
 void re_setup(){
       
   //ensure HX1 is turned off
@@ -221,7 +231,13 @@ void re_setup(){
   gpsPower(1);
   
   //Listen for a bit
+  // Defaults after init are 434.0MHz, modulation GFSK_Rb2_4Fd36
+  rf22.setModemRegisters(&GMSK_250bd);
+  rf22.setFrequency(458.500);
+  rf22.spiWrite(0x02A, 0x08); // Set the AFC register to allow +- (0x08 * 625Hz) pull-in (~+-5KHz)
   rf22.setModeRx();
+  
+  rf22.setFrequency(458.500);
   if(rf22.waitAvailableTimeout(5000)){
     
     // Should be a message for us now   
@@ -238,7 +254,86 @@ void re_setup(){
   radiostatus = 0;
   wait(500);
   setupRadio();
+  wait(2000);
+  rtty_txstring("$$$$$$$");
 }
+
+void setupRadio(){ 
+  digitalWrite(A5, LOW);
+  wait(1000);
+  rf22.init();
+  rf22.reset();
+  rf22.setModeTx();
+  
+  rf22.spiWrite(0x71, 0x00); // unmodulated carrier
+
+  rf22.setFrequency(434.351);
+  rf22.spiWrite(0x6D, RADIO_POWER);
+  rf22.spiWrite(0x07, 0x08); 
+  wait(1000);
+
+}
+
+//************ RTTY *****************
+// RTTY Functions - from RJHARRISON's AVR Code
+void rtty_txstring (char * string)
+{
+
+	/* Simple function to sent a char at a time to 
+	** rtty_txbyte function. 
+	** NB Each char is one byte (8 Bits)
+	*/
+	char c;
+	c = *string++;
+	while ( c != '\0')
+	{
+		rtty_txbyte (c);
+		c = *string++;
+	}
+}
+
+void rtty_txbyte (char c)
+{
+	/* Simple function to sent each bit of a char to 
+	** rtty_txbit function. 
+	** NB The bits are sent Least Significant Bit first
+	**
+	** All chars should be preceded with a 0 and 
+	** proceded with a 1. 0 = Start bit; 1 = Stop bit
+	**
+	** ASCII_BIT = 7 or 8 for ASCII-7 / ASCII-8
+	*/
+	int i;
+	rtty_txbit (0); // Start bit
+	// Send bits for for char LSB first	
+	for (i=0;i<8;i++)
+	{
+		if (c & 1) rtty_txbit(1); 
+			else rtty_txbit(0);	
+		c = c >> 1;
+	}
+	rtty_txbit (1); // Stop bit
+        rtty_txbit (1); // Stop bit
+        
+}
+
+void rtty_txbit (int bit)
+{
+		if (bit)
+		{
+		  // high
+                  rf22.spiWrite(0x073, 0x03);
+		}
+		else
+		{
+		  // low
+                  rf22.spiWrite(0x073, 0x00);
+		}
+                delayMicroseconds(9750); // 10000 = 100 BAUD 20150
+
+}
+
+//************ Geofencing *****************
 
 static int pointinpoly(const int32_t *poly, int points, int32_t x, int32_t y)
 {
@@ -341,6 +436,7 @@ int geofence_location(int32_t lat_poly, int32_t lon_poly)
   }
 }
 
+//************ APRS *****************
 void tx_aprs()
 {
   char slat[5];
@@ -563,6 +659,7 @@ void send_APRS() {
   
 }
 
+//************ GPS *****************
 
 void setupGPS() {
   //Turning off all GPS NMEA strings apart on the uBlox module
@@ -573,13 +670,6 @@ void setupGPS() {
   wait(1000);
   setGPS_DynamicModel6();
   wait(1000);
-}
-
-void wait(unsigned long delaytime) // Arduino Delay doesn't get CPU Speeds below 8Mhz
-{
-  unsigned long _delaytime=millis();
-  while((_delaytime+delaytime)>=millis()){
-  }
 }
 
 void sendUBX(uint8_t *MSG, uint8_t len) {
@@ -724,79 +814,6 @@ uint8_t* ckb)
     *ckb += *cka;
     data++;
   }
-}
-
-void setupRadio(){ 
-  digitalWrite(A5, LOW);
-  wait(1000);
-  rf22.init();
-  rf22.setModeTx();
-  
-  rf22.spiWrite(0x71, 0x00); // unmodulated carrier
-
-  rf22.setFrequency(434.351);
-  rf22.spiWrite(0x6D, RADIO_POWER);
-  rf22.spiWrite(0x07, 0x08); 
-  wait(1000);
-
-}
-
-// RTTY Functions - from RJHARRISON's AVR Code
-void rtty_txstring (char * string)
-{
-
-	/* Simple function to sent a char at a time to 
-	** rtty_txbyte function. 
-	** NB Each char is one byte (8 Bits)
-	*/
-	char c;
-	c = *string++;
-	while ( c != '\0')
-	{
-		rtty_txbyte (c);
-		c = *string++;
-	}
-}
-
-void rtty_txbyte (char c)
-{
-	/* Simple function to sent each bit of a char to 
-	** rtty_txbit function. 
-	** NB The bits are sent Least Significant Bit first
-	**
-	** All chars should be preceded with a 0 and 
-	** proceded with a 1. 0 = Start bit; 1 = Stop bit
-	**
-	** ASCII_BIT = 7 or 8 for ASCII-7 / ASCII-8
-	*/
-	int i;
-	rtty_txbit (0); // Start bit
-	// Send bits for for char LSB first	
-	for (i=0;i<8;i++)
-	{
-		if (c & 1) rtty_txbit(1); 
-			else rtty_txbit(0);	
-		c = c >> 1;
-	}
-	rtty_txbit (1); // Stop bit
-        rtty_txbit (1); // Stop bit
-        
-}
-
-void rtty_txbit (int bit)
-{
-		if (bit)
-		{
-		  // high
-                  rf22.spiWrite(0x073, 0x03);
-		}
-		else
-		{
-		  // low
-                  rf22.spiWrite(0x073, 0x00);
-		}
-                delayMicroseconds(9750); // 10000 = 100 BAUD 20150
-
 }
 
 uint16_t gps_CRC16_checksum (char *string)
