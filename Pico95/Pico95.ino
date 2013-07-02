@@ -94,7 +94,7 @@ volatile static uint8_t  _txlen = 0;
 int32_t lat = 514981000, lon = -530000, alt = 36000, lat_dec = 0, lon_dec =0;
 uint8_t hour = 0, minute = 0, second = 0, month = 0, day = 0, lock = 0, sats = 0;
 int GPSerror = 0, count = 1, n, navmode = 0, lat_int=0,lon_int=0, errorstatus, radiostatus, gpsstatus, psm_status = 0, aprs_count = 0;
-int lock_count = 0;
+int lock_count = 0, rssi_rx, reboot_flag = 0;
 uint8_t buf[60]; //GPS receive buffer
 char comment[3];
 char superbuffer [80]; //Telem string buffer
@@ -134,12 +134,7 @@ void loop() {
   if(count % 20 == 0){
     re_setup();
   }
-  /*
-  if(count % 200 == 0){
-    gpsPower(2); //reset the GPS
-    wait(10000);
-  }
-  */
+  
   //If GPS is ON every 5 strings check the nav mode
   if(gpsstatus == 1){
     if((count % 5) == 0){
@@ -192,6 +187,10 @@ void loop() {
   //************** RTTY *************//
   prepData();
   
+  if(reboot_flag == 1){
+      rtty_txstring("$$$$$$$");
+      reboot_flag = 0;
+  }
   rtty_txstring("$$");
   rtty_txstring(superbuffer);
   
@@ -211,12 +210,11 @@ void wait(unsigned long delaytime) // Arduino Delay doesn't get CPU Speeds below
 
 void prepData() {
   if(gpsstatus == 1){
-    //gps_check_lock();
     gps_get_position();
     gps_get_time();
   }
   count++;
-  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d,%s", count, hour, minute, second, lat, lon, alt, sats, navmode, psm_status, lock, Rxbuf);
+  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d%d,%d,%s", count, hour, minute, second, lat, lon, alt, sats, navmode, psm_status, lock, rssi_rx, Rxbuf);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
 }
 
@@ -244,7 +242,7 @@ void re_setup(){
     uint8_t len = sizeof(Rxbuf);
     if (rf22.recv(Rxbuf, &len))
     {
-      
+      rssi_rx = rf22.rssiRead();
     }
   }
     
@@ -254,8 +252,8 @@ void re_setup(){
   radiostatus = 0;
   wait(500);
   setupRadio();
+  reboot_flag = 1;
   wait(2000);
-  rtty_txstring("$$$$$$$");
 }
 
 void setupRadio(){ 
