@@ -1,4 +1,4 @@
-
+// PicoX - barebones setup using RF22 lib ratehr than RFM22
 
 #include <SPI.h>
 #include <RF22.h>
@@ -11,7 +11,7 @@ RF22 rf22(10,0);
 int32_t lat = 0, lon = 0, alt = 0;
 uint8_t hour = 0, minute = 0, second = 0, lock = 0, sats = 0;
 unsigned long startGPS = 0;
-int GPSerror = 0, count = 1, n, gpsstatus, lockcount = 0, intTemp = 0, total_time = -1, radiostatus = 0, navmode = 9, volts = 0, data_av = 0, y;
+int GPSerror = 0, count = 1, n, gpsstatus, total_time = -1, radiostatus = 0, navmode = 9;
 char superbuffer [80]; //Telem string buffer
 uint8_t buf[60]; //GPS receive buffer
 
@@ -351,21 +351,15 @@ void setupRadio(){
   
   delay(500);
   
-  radio1.initSPI();
-
-  radio1.init();
+  rf22.init();
   
-  radio1.write(0x71, 0x00); // unmodulated carrier
- 
-  //This sets up the GPIOs to automatically switch the antenna depending on Tx or Rx state, only needs to be done at start up
-  radio1.write(0x0b,0x12);
-  radio1.write(0x0c,0x15);
+  rf22.spiWrite(0x71, 0x00); // unmodulated carrier
   
-  radio1.setFrequency(434.401);
+  rf22.setFrequency(434.175);
   
-  radio1.write(0x6D, 0x04);// turn tx low power 11db
+  rf22.spiWrite(0x6D, 0x04);// turn tx low power 11db
   
-  radio1.write(0x07, 0x08); // turn tx on
+  rf22.spiWrite(0x07, 0x08); // turn tx on
   
   radiostatus = 1;
   
@@ -378,8 +372,7 @@ void prepData() {
     gps_get_time();
   }
   count++;
-  volts = analogRead(0);
-  n=sprintf (superbuffer, "$$ATLAS,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d", count, hour, minute, second, lat, lon, alt, sats, navmode);
+  n=sprintf (superbuffer, "$$$$ATLAS,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d", count, hour, minute, second, lat, lon, alt, sats, navmode);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
 }
 
@@ -390,10 +383,18 @@ void setup() {
   digitalWrite(A3, HIGH); //Turn radio off
   radiostatus = 0;
   
-  //Turn off GPS
+  //Turn on GPS
   Serial.begin(9600);
   gpsPower(1);
 
   //Setup Radio
   setupRadio();
+}
+
+void loop(){
+  prepData();
+  
+  rtty_txstring(superbuffer);
+  
+  delay(1000);
 }
