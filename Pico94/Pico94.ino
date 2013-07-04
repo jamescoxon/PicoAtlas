@@ -94,7 +94,7 @@ volatile static uint8_t  _txlen = 0;
 int32_t lat = 514981000, lon = -530000, alt = 36000, lat_dec = 0, lon_dec =0;
 uint8_t hour = 0, minute = 0, second = 0, month = 0, day = 0, lock = 0, sats = 0;
 int GPSerror = 0, count = 1, n, navmode = 0, lat_int=0,lon_int=0, errorstatus, radiostatus, gpsstatus, psm_status = 0, aprs_count = 0;
-int lock_count = 0;
+int lock_count = 0, reset_flag = 0;
 uint8_t buf[60]; //GPS receive buffer
 char comment[3];
 char superbuffer [80]; //Telem string buffer
@@ -108,8 +108,8 @@ void setup() {
   pinMode(HX1_POWER, OUTPUT);   
   pinMode(HX1_ENABLE, OUTPUT);
   pinMode(GPS_ENABLE, OUTPUT);
-  pinMode(A5, OUTPUT);  
-  digitalWrite(A5, HIGH);
+  pinMode(3, OUTPUT);  
+  digitalWrite(3, HIGH);
   digitalWrite(GPS_ENABLE, LOW);
   digitalWrite(HX1_POWER, LOW);
   digitalWrite(HX1_ENABLE, LOW);
@@ -188,6 +188,10 @@ void loop() {
   //************** RTTY *************//
   prepData();
   
+  if(reset_flag == 1){
+    rtty_txstring("$$$$$$$$");
+    reset_flag = 0;
+  }
   rtty_txstring("$$");
   rtty_txstring(superbuffer);
   
@@ -218,10 +222,12 @@ void re_setup(){
     gpsPower(1);
     
     //Reboot Radio
-    digitalWrite(A5, HIGH);
+    digitalWrite(3, HIGH);
     radiostatus = 0;
     wait(1000);
     setupRadio();
+    
+    reset_flag = 1;
 }
 
 static int pointinpoly(const int32_t *poly, int points, int32_t x, int32_t y)
@@ -525,7 +531,7 @@ void send_APRS() {
   
   //Shutdown RFM22
   SPI.end();
-  digitalWrite(A5, HIGH);
+  digitalWrite(3, HIGH);
   wait(1000);
   
   ax25_init();
@@ -711,7 +717,7 @@ uint8_t* ckb)
 }
 
 void setupRadio(){ 
-  digitalWrite(A5, LOW);
+  digitalWrite(3, LOW);
   wait(1000);
   rfm22::initSPI();
   radio1.init();
@@ -719,7 +725,7 @@ void setupRadio(){
   //This sets up the GPIOs to automatically switch the antenna depending on Tx or Rx state, only needs to be done at start up
   radio1.write(0x0b,0x12);
   radio1.write(0x0c,0x15);
-  radio1.setFrequency(434.351);
+  radio1.setFrequency(434.190);
   radio1.write(0x6D, RADIO_POWER);
   radio1.write(0x07, 0x08); 
   wait(1000);

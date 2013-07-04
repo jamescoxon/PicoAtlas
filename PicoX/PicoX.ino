@@ -1,4 +1,4 @@
-// PicoX - barebones setup using RF22 lib ratehr than RFM22
+// PicoX - barebones setup using RF22 lib rather than RFM22
 
 #include <SPI.h>
 #include <RF22.h>
@@ -9,11 +9,11 @@ RF22 rf22(10,0);
 
 //Variables
 int32_t lat = 0, lon = 0, alt = 0;
-uint8_t hour = 0, minute = 0, second = 0, lock = 0, sats = 0;
+uint8_t hour = 0, minute = 0, second = 0, lock = 0, sats = 0, lock_count = 0;
 unsigned long startGPS = 0;
-int GPSerror = 0, count = 1, n, gpsstatus, total_time = -1, radiostatus = 0, navmode = 9;
+int GPSerror = 0, count = 1, n, gpsstatus, total_time = -1, radiostatus = 0, navmode = 9, psm_status = 0;
 char superbuffer [80]; //Telem string buffer
-uint8_t buf[60]; //GPS receive buffer
+uint8_t buf[80]; //GPS receive buffer
 
 // RTTY Functions - from RJHARRISON's AVR Code
 void rtty_txstring (char * string)
@@ -61,14 +61,15 @@ void rtty_txbit (int bit)
 		if (bit)
 		{
 		  // high
-                  rf22.spiWrite(0x073, 0x00);
+                  rf22.spiWrite(0x73, 0x03);
 		}
 		else
 		{
 		  // low
-                  rf22.spiWrite(0x073, 0x00);
+                  rf22.spiWrite(0x73, 0x00);
 		}
-                delayMicroseconds(19500); // 10000 = 100 BAUD 20150
+                ///delayMicroseconds(19500); // 10000 = 100 BAUD 20150
+                delayMicroseconds(9750); // 10000 = 100 BAUD 20150
 
 }
 
@@ -190,40 +191,41 @@ void gps_get_data()
  */
 void gps_check_lock()
 {
-    GPSerror = 0;
-    Serial.flush();
-    // Construct the request to the GPS
-    uint8_t request[8] = {0xB5, 0x62, 0x01, 0x06, 0x00, 0x00,
-        0x07, 0x16};
-    sendUBX(request, 8);
+  GPSerror = 0;
+  Serial.flush();
+  // Construct the request to the GPS
+  uint8_t request[8] = {0xB5, 0x62, 0x01, 0x06, 0x00, 0x00, 0x07, 0x16};
+  sendUBX(request, 8);
 
-    // Get the message back from the GPS
-    gps_get_data();
-    // Verify the sync and header bits
-    if( buf[0] != 0xB5 || buf[1] != 0x62 ) {
-      GPSerror = 11;
-    }
-    if( buf[2] != 0x01 || buf[3] != 0x06 ) {
-      GPSerror = 12;
-    }
+  // Get the message back from the GPS
+  gps_get_data();
+  // Verify the sync and header bits
+  if( buf[0] != 0xB5 || buf[1] != 0x62 ) {
+    GPSerror = 11;
+  }
+  if( buf[2] != 0x01 || buf[3] != 0x06 ) {
+    GPSerror = 12;
+  }
 
-    // Check 60 bytes minus SYNC and CHECKSUM (4 bytes)
-    if( !_gps_verify_checksum(&buf[2], 56) ) {
-      GPSerror = 13;
-    }
-    
-    if(GPSerror == 0){
+  // Check 60 bytes minus SYNC and CHECKSUM (4 bytes)
+  if( !_gps_verify_checksum(&buf[2], 56) ) {
+    GPSerror = 13;
+  }
+
+  if(GPSerror == 0){
     // Return the value if GPSfixOK is set in 'flags'
-    if( buf[17] & 0x01 )
-        lock = buf[16];
-    else
-        lock = 0;
-
-    sats = buf[53];
+    if( buf[17] & 0x01 ){
+      lock = buf[16];
     }
     else {
       lock = 0;
     }
+
+    sats = buf[53];
+  }
+  else {
+    lock = 0;
+  }
 }
 
 /**
@@ -317,13 +319,13 @@ void setupGPS() {
   uint8_t setNMEAoff[] = {0xB5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xD0, 0x08, 0x00, 0x00, 0x80, 0x25, 0x00, 0x00, 0x07, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA0, 0xA9};
   sendUBX(setNMEAoff, sizeof(setNMEAoff)/sizeof(uint8_t));
   
-  delay(500);
+  wait(500);
   
     // Check and set the navigation mode (Airborne, 1G)
   uint8_t setNav[] = {0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF, 0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x05, 0x00, 0xFA, 0x00, 0xFA, 0x00, 0x64, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0xDC};
   sendUBX(setNav, sizeof(setNav)/sizeof(uint8_t));
   
-  delay(500);
+  wait(500);
   
 }
 void gpsPower(int i){
@@ -340,61 +342,120 @@ void gpsPower(int i){
     uint8_t GPSon[] = {0xB5, 0x62, 0x06, 0x04, 0x04, 0x00, 0x00, 0x00, 0x09, 0x00, 0x17, 0x76};
     sendUBX(GPSon, sizeof(GPSon)/sizeof(uint8_t));
     gpsstatus = 1;
-    delay(1000);
+    wait(1000);
     setupGPS();
+  }
+}
+
+void setGPS_PowerSaveMode() {
+  // Power Save Mode 
+  uint8_t setPSM[] = { 
+    0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x08, 0x01, 0x22, 0x92}; // Setup for Power Save Mode (Default Cyclic 1s)
+  sendUBX(setPSM, sizeof(setPSM)/sizeof(uint8_t));
+  psm_status=1;
+}
+void setGps_MaxPerformanceMode() {
+  //Set GPS for Max Performance Mode
+  uint8_t setMax[] = { 
+    0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x08, 0x00, 0x21, 0x91}; // Setup for Max Power Mode
+  sendUBX(setMax, sizeof(setMax)/sizeof(uint8_t));
+  psm_status=0;
+}
+
+void gps_PSM(){
+  
+  gps_check_lock();
+  
+  if(psm_status == 1){
+    
+    if((lock == 0) || (sats < 5)){
+      setGps_MaxPerformanceMode();
+      wait(1000);
+    }
+  }
+}
+
+void wait(unsigned long delaytime) // Arduino Delay doesn't get CPU Speeds below 8Mhz
+{
+  unsigned long _delaytime=millis();
+  while((_delaytime+delaytime)>=millis()){
   }
 }
 
 void setupRadio(){
   
-  digitalWrite(A3, LOW); // Turn on Radio
+  digitalWrite(3, LOW); // Turn on Radio
   
-  delay(500);
+  wait(500);
   
   rf22.init();
   
   rf22.spiWrite(0x71, 0x00); // unmodulated carrier
   
-  rf22.setFrequency(434.175);
+  rf22.setFrequency(434.190);
   
   rf22.spiWrite(0x6D, 0x04);// turn tx low power 11db
   
   rf22.spiWrite(0x07, 0x08); // turn tx on
+  
+  wait(1000);
   
   radiostatus = 1;
   
 }
 
 void prepData() {
-  if(gpsstatus == 1){
-    gps_check_lock();
-    gps_get_position();
-    gps_get_time();
-  }
+
+
+  
+  gps_get_position();
+  gps_get_time();
+  gps_check_lock();
+ 
   count++;
-  n=sprintf (superbuffer, "$$$$ATLAS,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d", count, hour, minute, second, lat, lon, alt, sats, navmode);
+  n=sprintf (superbuffer, "$$$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, navmode, lock, lock_count);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
 }
 
-void setup() {
+void re_setup(){
+    //Send commands to GPS
+    gpsPower(1);
+    
+    //Reboot Radio
+    digitalWrite(3, HIGH);
+    radiostatus = 0;
+    wait(1000);
+    setupRadio();
+}
 
+void setup() {
+  Serial.begin(9600);
+  
+  // LED
+  pinMode(4, OUTPUT);
+  digitalWrite(4, HIGH);
+  
   //Turn off Radio
-  pinMode(A3, OUTPUT);
-  digitalWrite(A3, HIGH); //Turn radio off
+  pinMode(3, OUTPUT);
+  digitalWrite(3, HIGH); //Turn radio off
   radiostatus = 0;
   
   //Turn on GPS
-  Serial.begin(9600);
-  gpsPower(1);
+  setupGPS();
 
   //Setup Radio
   setupRadio();
 }
 
 void loop(){
+
+  /************** Data Prep and Tx ************/
   prepData();
   
   rtty_txstring(superbuffer);
-  
-  delay(1000);
+
+  wait(1000);
+  digitalWrite(4, LOW);
+  wait(1000);
+  digitalWrite(4, HIGH);
 }
