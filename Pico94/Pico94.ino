@@ -94,7 +94,7 @@ volatile static uint8_t  _txlen = 0;
 int32_t lat = 514981000, lon = -530000, alt = 36000, lat_dec = 0, lon_dec =0;
 uint8_t hour = 0, minute = 0, second = 0, month = 0, day = 0, lock = 0, sats = 0;
 int GPSerror = 0, count = 1, n, navmode = 0, lat_int=0,lon_int=0, errorstatus, radiostatus, gpsstatus, psm_status = 0, aprs_count = 0;
-int lock_count = 0, reset_flag = 0;
+int lock_count = 0, reset_flag = 0, volts = 0;
 uint8_t buf[60]; //GPS receive buffer
 char comment[3];
 char superbuffer [80]; //Telem string buffer
@@ -130,6 +130,7 @@ void loop() {
     re_setup();
     wait(2000);
   }
+    
   /*
   if(count % 200 == 0){
     gpsPower(2); //reset the GPS
@@ -188,9 +189,11 @@ void loop() {
   //************** RTTY *************//
   prepData();
   
+  
   if(reset_flag == 1){
     rtty_txstring("$$$$$$$$");
     reset_flag = 0;
+    wait(500);
   }
   rtty_txstring("$$");
   rtty_txstring(superbuffer);
@@ -203,13 +206,14 @@ void loop() {
 //************Other Functions*****************
 
 void prepData() {
+  volts = analogRead(0);
   if(gpsstatus == 1){
     //gps_check_lock();
     gps_get_position();
     gps_get_time();
   }
   count++;
-  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, navmode, psm_status, lock);
+  n=sprintf (superbuffer, "$$PICO,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, navmode, psm_status, lock, volts);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
 }
 
@@ -929,6 +933,7 @@ void gps_get_time()
     }
   }
 }
+
 void setGPS_PowerSaveMode() {
   // Power Save Mode 
   uint8_t setPSM[] = { 
@@ -986,9 +991,6 @@ void gps_PSM(){
     }
   }
 }
-
-
-
 
 
 
